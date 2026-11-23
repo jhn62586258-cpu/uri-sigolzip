@@ -20,6 +20,7 @@ export const SCENES = {
       { id: 'harvest', kind: 'action', action: 'harvest', x: 5.5, z: -5.0, r: 2.7, label: '🍊 귤 수확하기' },
       { id: 'squirrel', kind: 'sound', sound: 'squirrel', x: 5.5, z: -5.0, r: 3.2, label: '🐿️ 다람쥐 소리 듣기' },
       { id: 'dogs', kind: 'action', action: 'petDogs', x: 5.8, z: -0.6, r: 3.0, label: '🐶 강아지 쓰다듬기 / 멍멍 소리 듣기' },
+      { id: 'cat', kind: 'action', action: 'petCat', x: -2.4, z: -3.7, r: 1.8, label: '🐱 고양이 쓰다듬기 / 야옹 소리 듣기' },
       { id: 'mailbox', kind: 'action', action: 'letter', x: 9.4, z: -0.1, r: 1.8, label: '💌 우체통 열어보기' },
       { id: 'bench', kind: 'action', action: 'tea', x: -8.3, z: -3.8, r: 1.9, label: '🍵 평상에서 티타임' },
     ],

@@ -14,8 +14,8 @@ export function Rain({ count = 1100, area = [30, 26], center = [0, -1], height =
       const x = center[0] + (Math.random() - 0.5) * area[0]
       const z = center[1] + (Math.random() - 0.5) * area[1]
       const y = Math.random() * height
-      pos.set([x, y, z, x + 0.03, y - 0.38, z + 0.01], i * 6)
-      sp[i] = 9 + Math.random() * 4
+      pos.set([x, y, z, x + 0.01, y - 0.14, z + 0.004], i * 6)
+      sp[i] = 2.8 + Math.random() * 1.6
     }
     const g = new THREE.BufferGeometry()
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
@@ -28,7 +28,7 @@ export function Rain({ count = 1100, area = [30, 26], center = [0, -1], height =
     for (let i = 0; i < count; i++) {
       const o = i * 6
       let y = a[o + 1] - speeds[i] * dt
-      let x = a[o]
+      let x = a[o] + Math.sin(performance.now() * 0.0004 + i) * dt * 0.15
       let z = a[o + 2]
       let reset = y < 0
       if (!reset) {
@@ -47,15 +47,15 @@ export function Rain({ count = 1100, area = [30, 26], center = [0, -1], height =
       a[o] = x
       a[o + 1] = y
       a[o + 2] = z
-      a[o + 3] = x + 0.03
-      a[o + 4] = y - 0.38
-      a[o + 5] = z + 0.01
+      a[o + 3] = x + 0.01 + Math.sin(y * 0.7 + i) * 0.004
+      a[o + 4] = y - 0.14
+      a[o + 5] = z + 0.004
     }
     geo.attributes.position.needsUpdate = true
   })
   return (
     <lineSegments ref={ref} geometry={geo} frustumCulled={false}>
-      <lineBasicMaterial color="#dfe8f2" transparent opacity={0.5} />
+      <lineBasicMaterial color="#eef3f8" transparent opacity={0.28} depthWrite={false} />
     </lineSegments>
   )
 }

@@ -149,7 +149,7 @@ export function petDogs() {
   audio.play('dog')
   setTimeout(() => audio.play('pet'), 600)
   fx('dogs')
-  toast('백구랑 회색이가 꼬리를 살랑살랑 🐶💕')
+  toast('해리랑 복실이가 꼬리를 살랑살랑 🐶💕')
 }
 
 export function harvest() {
@@ -223,13 +223,28 @@ export function deleteDiary(id) {
   setState({ diary })
 }
 
+let lastMeow = 0
+export function meow() {
+  const now = performance.now()
+  if (now - lastMeow < 1500) return
+  lastMeow = now
+  audio.play('meow')
+}
+export function petCat() {
+  lastMeow = 0
+  meow()
+  setTimeout(() => audio.play('purr'), 700)
+  fx('cat')
+  toast('고양이가 눈을 지그시 감고 골골송을 불러요 🐱💗')
+}
+
 // ---- 거실 ----
 export function hugPoodle() {
   audio.play('hug')
   fx('poodle')
   setState({ pose: 'hug' })
   setTimeout(() => getState().pose === 'hug' && setState({ pose: 'stand' }), 1800)
-  toast('몽글이가 꼬옥 안겨서 꼬리를 흔들어요 🐩💗')
+  toast('사월이가 꼬옥 안겨서 꼬리를 흔들어요 🐩💗')
 }
 
 export function nextChannel() {
@@ -297,6 +312,7 @@ export function saveNotes(notes) {
 export function runAction(name) {
   if (name === 'harvest') return harvest()
   if (name === 'petDogs') return petDogs()
+  if (name === 'petCat') return petCat()
   if (name === 'letter') return openModal('letter')
   if (name === 'tea') return teaTime()
   if (name === 'channel') return nextChannel()

@@ -905,3 +905,27 @@ button {
     bottom: 190px;
   }
 }
+
+/* ---------- 동물 이름표 ---------- */
+.nametag {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 250, 242, 0.88);
+  color: #6a4632;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(60, 30, 10, 0.2);
+  pointer-events: none;
+  opacity: 0.85;
+  transform: scale(0.92);
+  transition: transform 0.2s, opacity 0.2s;
+}
+.nametag::before {
+  content: '🐾 ';
+  font-size: 10px;
+}
+.nametag.near {
+  opacity: 1;
+  transform: scale(1.12);
+}

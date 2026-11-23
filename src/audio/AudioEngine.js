@@ -281,17 +281,17 @@ function rainAmbience(E) {
   const n1 = E.loopNoise('pink')
   const hp = E.filter('highpass', 500)
   const lp = E.filter('lowpass', 5200)
-  const g1 = E.gain(0.55)
+  const g1 = E.gain(0.26)
   n1.connect(hp).connect(lp).connect(g1).connect(out)
   // 낮게 깔리는 웅웅거림
   const n2 = E.loopNoise('brown')
   const lp2 = E.filter('lowpass', 380)
-  const g2 = E.gain(0.22)
+  const g2 = E.gain(0.1)
   n2.connect(lp2).connect(g2).connect(out)
   // 바람결처럼 천천히 커졌다 작아짐
   const lfo = ctx.createOscillator()
   lfo.frequency.value = 0.07
-  const lfoG = E.gain(0.16)
+  const lfoG = E.gain(0.07)
   lfo.connect(lfoG).connect(g1.gain)
   lfo.start()
   nodes.push(n1, n2, lfo)
@@ -299,16 +299,15 @@ function rainAmbience(E) {
   // 톡톡 떨어지는 빗방울
   const drops = setInterval(() => {
     const t0 = ctx.currentTime + 0.05
-    const k = Math.floor(rand(1, 4))
-    for (let i = 0; i < k; i++) {
-      E.burst(out, t0 + rand(0, 0.06), {
-        dur: rand(0.015, 0.045),
-        freq: rand(1800, 7000),
+    if (Math.random() < 0.55) {
+      E.burst(out, t0 + rand(0, 0.1), {
+        dur: rand(0.012, 0.03),
+        freq: rand(2500, 7000),
         Q: rand(2, 5),
-        peak: rand(0.03, 0.12),
+        peak: rand(0.015, 0.05),
       })
     }
-  }, 60)
+  }, 120)
   // 처마에서 똑... 똑... 떨어지는 물방울
   let dripTimer
   const drip = () => {
@@ -1014,6 +1013,51 @@ function lofiAmbience(E) {
 }
 
 const SFX_EXTRA = {
+  // 🐱 야옹~ (모음이 열렸다 닫히는 포먼트 + 피치 곡선)
+  meow(E, t) {
+    const ctx = E.ctx
+    const o = ctx.createOscillator()
+    o.type = 'sawtooth'
+    o.frequency.setValueAtTime(520, t)
+    o.frequency.linearRampToValueAtTime(780, t + 0.18)
+    o.frequency.linearRampToValueAtTime(820, t + 0.3)
+    o.frequency.linearRampToValueAtTime(470, t + 0.62)
+    const f = E.filter('bandpass', 700, 3)
+    f.frequency.setValueAtTime(600, t)
+    f.frequency.linearRampToValueAtTime(1500, t + 0.25)
+    f.frequency.linearRampToValueAtTime(800, t + 0.6)
+    const f2 = E.filter('lowpass', 3000)
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0, t)
+    g.gain.linearRampToValueAtTime(0.35, t + 0.06)
+    g.gain.setValueAtTime(0.3, t + 0.4)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.68)
+    o.connect(f).connect(f2).connect(g).connect(E.sfxBus)
+    o.start(t)
+    o.stop(t + 0.72)
+  },
+  // 골골송
+  purr(E, t) {
+    const ctx = E.ctx
+    const n = ctx.createBufferSource()
+    n.buffer = E.brown
+    const lp = E.filter('lowpass', 260)
+    const g = ctx.createGain()
+    g.gain.value = 0
+    const am = ctx.createOscillator()
+    am.frequency.value = 24
+    const amg = E.gain(0.35)
+    am.connect(amg).connect(g.gain)
+    const env = ctx.createGain()
+    env.gain.setValueAtTime(0, t)
+    env.gain.linearRampToValueAtTime(1, t + 0.3)
+    env.gain.setValueAtTime(1, t + 1.6)
+    env.gain.linearRampToValueAtTime(0, t + 2.2)
+    n.connect(lp).connect(g).connect(env).connect(E.sfxBus)
+    n.start(t, 0, 2.4)
+    am.start(t)
+    am.stop(t + 2.4)
+  },
   // 🐶 쓰다듬기: 낑낑 좋아하는 소리
   pet(E, t) {
     for (let i = 0; i < 2; i++) {

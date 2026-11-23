@@ -15,8 +15,20 @@ const SKIN = '#ffdcc4'
 
 const damp = THREE.MathUtils.damp
 
-function Mat({ c, map, rough = 0.92, side }) {
-  return <meshStandardMaterial color={c} map={map || null} roughness={rough} metalness={0} side={side} />
+// 마시멜로 질감: 아주 매트하면서 가장자리에 보송한 광택(sheen)이 도는 재질
+function Mat({ c, map, rough = 0.95, side }) {
+  return (
+    <meshPhysicalMaterial
+      color={c}
+      map={map || null}
+      roughness={rough}
+      metalness={0}
+      sheen={0.8}
+      sheenRoughness={0.75}
+      sheenColor="#fff4e8"
+      side={side}
+    />
+  )
 }
 
 function Hair({ style, color }) {
@@ -38,6 +50,13 @@ function Hair({ style, color }) {
     // 바가지 머리: 이마 위에서 반듯하게 잘린 앞머리 + 귀 아래까지 덮는 뒷머리
     parts.push(cap(1.3, 'c'))
     parts.push(back(2.05, 'b'))
+    // 앞머리 끝을 둥글게 말아 각진 단면이 보이지 않게
+    parts.push(
+      <mesh key="rim" position={[0, R * Math.cos(1.3), 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+        <torusGeometry args={[R * Math.sin(1.3) - 0.008, 0.014, 10, 40, Math.PI]} />
+        <Mat c={color} />
+      </mesh>
+    )
     // 옆머리: 얼굴 패치 양옆만 덮어 귀 아래까지 내려오는 바가지 실루엣
     ;[[0, Math.PI / 2 - 0.78], [Math.PI / 2 + 0.78, Math.PI / 2 - 0.78]].forEach(([ps, pl], i) =>
       parts.push(
@@ -50,6 +69,12 @@ function Hair({ style, color }) {
   } else if (style === 'bun') {
     parts.push(cap(1.18, 'c', R * 0.99))
     parts.push(back(1.9, 'b', R * 0.99))
+    parts.push(
+      <mesh key="rim" position={[0, R * 0.99 * Math.cos(1.18), 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[R * 0.99 * Math.sin(1.18) - 0.008, 0.014, 10, 40, Math.PI]} />
+        <Mat c={color} />
+      </mesh>
+    )
     parts.push(
       <mesh key="bun" position={[0, 0.2, -0.24]} castShadow>
         <sphereGeometry args={[0.13, 20, 14]} />
@@ -65,19 +90,31 @@ function Hair({ style, color }) {
   } else if (style === 'short') {
     parts.push(cap(1.08, 'c', R * 0.98))
     parts.push(back(1.75, 'b', R * 0.98))
+    parts.push(
+      <mesh key="rim" position={[0, R * 0.98 * Math.cos(1.08), 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[R * 0.98 * Math.sin(1.08) - 0.008, 0.014, 10, 40, Math.PI]} />
+        <Mat c={color} />
+      </mesh>
+    )
   } else if (style === 'messy') {
     parts.push(cap(1.2, 'c', R))
     parts.push(back(1.85, 'b', R))
+    parts.push(
+      <mesh key="rim" position={[0, R * Math.cos(1.2), 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[R * Math.sin(1.2) - 0.008, 0.014, 10, 40, Math.PI]} />
+        <Mat c={color} />
+      </mesh>
+    )
+    // 뾰족한 삐침 대신 동글동글한 머리 뭉치
     ;[
-      [0.06, 0.33, 0.12, 0.3],
-      [-0.1, 0.32, 0.08, -0.4],
-      [0.15, 0.27, -0.02, 0.8],
-      [-0.02, 0.35, -0.08, 0.1],
-      [0.0, 0.25, 0.25, 0.2],
-    ].forEach(([x, y, z, rz], i) =>
+      [0.07, 0.3, 0.12, 0.085],
+      [-0.09, 0.3, 0.09, 0.08],
+      [0.15, 0.25, -0.02, 0.075],
+      [-0.03, 0.33, -0.06, 0.09],
+    ].forEach(([x, y, z, r], i) =>
       parts.push(
-        <mesh key={'t' + i} position={[x, y, z]} rotation={[0.4, 0, rz]} castShadow>
-          <coneGeometry args={[0.06, 0.14, 8]} />
+        <mesh key={'t' + i} position={[x, y, z]} scale={[1, 0.75, 1]} castShadow>
+          <sphereGeometry args={[r, 16, 12]} />
           <Mat c={color} />
         </mesh>
       )
@@ -235,15 +272,15 @@ export function Chibi({ look, pose = 'stand', animRef, talking = false, seed = 0
     <group ref={refObj} position={[side * 0.22, 0.47, 0]}>
       {prop}
       <mesh position={[0, -0.02, 0]} castShadow>
-        <sphereGeometry args={[0.085, 16, 12]} />
+        <sphereGeometry args={[0.092, 20, 14]} />
         <Mat c={top} map={topMap} />
       </mesh>
-      <mesh position={[0, -0.12, 0]} castShadow>
-        <capsuleGeometry args={[0.068, 0.12, 6, 12]} />
+      <mesh position={[0, -0.11, 0]} castShadow>
+        <capsuleGeometry args={[0.078, 0.09, 8, 16]} />
         <Mat c={longSleeve ? top : SKIN} map={longSleeve ? topMap : null} />
       </mesh>
-      <mesh position={[0, -0.23, 0]} castShadow>
-        <sphereGeometry args={[0.072, 14, 10]} />
+      <mesh position={[0, -0.215, 0]} castShadow>
+        <sphereGeometry args={[0.082, 20, 14]} />
         <Mat c={SKIN} />
       </mesh>
     </group>
@@ -252,11 +289,11 @@ export function Chibi({ look, pose = 'stand', animRef, talking = false, seed = 0
   const Leg = ({ side, refObj }) => (
     <group ref={refObj} position={[side * 0.105, 0.18, 0]}>
       <mesh position={[0, -0.06, 0]} castShadow>
-        <capsuleGeometry args={[0.082, 0.06, 6, 12]} />
+        <capsuleGeometry args={[0.092, 0.04, 8, 16]} />
         <Mat c={legs} />
       </mesh>
-      <mesh position={[0, -0.14, 0.03]} scale={[1, 0.65, 1.3]} castShadow>
-        <sphereGeometry args={[0.085, 14, 10]} />
+      <mesh position={[0, -0.135, 0.03]} scale={[1, 0.72, 1.2]} castShadow>
+        <sphereGeometry args={[0.095, 20, 14]} />
         <Mat c={shoes} />
       </mesh>
     </group>
@@ -266,18 +303,18 @@ export function Chibi({ look, pose = 'stand', animRef, talking = false, seed = 0
     <group scale={look.scale || 1}>
       <group ref={body}>
         {/* 몸통 */}
-        <mesh position={[0, 0.33, 0]} scale={[0.25, 0.24, 0.215]} castShadow receiveShadow>
-          <sphereGeometry args={[1, 28, 20]} />
+        <mesh position={[0, 0.32, 0]} scale={[0.27, 0.255, 0.24]} castShadow receiveShadow>
+          <sphereGeometry args={[1, 36, 24]} />
           <Mat c={top} map={topMap} />
         </mesh>
         {/* 반바지/바지 */}
-        <mesh position={[0, 0.2, 0]} scale={[0.235, 0.13, 0.205]} castShadow>
-          <sphereGeometry args={[1, 24, 16]} />
+        <mesh position={[0, 0.19, 0]} scale={[0.255, 0.14, 0.225]} castShadow>
+          <sphereGeometry args={[1, 32, 20]} />
           <Mat c={bottom} />
         </mesh>
         {/* 조끼 (앞이 트인 껍질) */}
         {look.vest && (
-          <mesh position={[0, 0.33, 0]} scale={[0.265, 0.255, 0.23]} castShadow>
+          <mesh position={[0, 0.32, 0]} scale={[0.282, 0.268, 0.252]} castShadow>
             <sphereGeometry args={[1, 28, 18, Math.PI / 2 + 0.38, Math.PI * 2 - 0.76, 0.55, 1.9]} />
             <Mat c={look.vest} map={vestMap} side={THREE.DoubleSide} />
           </mesh>
@@ -285,13 +322,13 @@ export function Chibi({ look, pose = 'stand', animRef, talking = false, seed = 0
         {/* 앞치마 */}
         {look.apron && (
           <group>
-            <mesh position={[0, 0.27, 0]} scale={[1, 1, 0.92]}>
-              <cylinderGeometry args={[0.235, 0.27, 0.36, 20, 1, true, -0.95, 1.9]} />
+            <mesh position={[0, 0.3, 0]} scale={[0.283, 0.27, 0.255]}>
+              <sphereGeometry args={[1, 32, 20, Math.PI / 2 - 0.95, 1.9, 1.0, 1.75]} />
               <Mat c="#ffffff" map={apronMap} side={THREE.DoubleSide} />
             </mesh>
             {[-1, 1].map((s) => (
-              <mesh key={s} position={[s * 0.1, 0.49, 0.1]} rotation={[0.5, 0, 0]}>
-                <boxGeometry args={[0.04, 0.12, 0.01]} />
+              <mesh key={s} position={[s * 0.1, 0.5, 0.12]} rotation={[0.6, 0, 0]}>
+                <capsuleGeometry args={[0.015, 0.07, 6, 10]} />
                 <Mat c="#f3d7d0" />
               </mesh>
             ))}
@@ -305,13 +342,13 @@ export function Chibi({ look, pose = 'stand', animRef, talking = false, seed = 0
               <Mat c={look.hood} />
             </mesh>
             {[-1, 1].map((s) => (
-              <mesh key={s} position={[s * 0.05, 0.47, 0.2]}>
-                <cylinderGeometry args={[0.008, 0.008, 0.12, 6]} />
+              <mesh key={s} position={[s * 0.05, 0.45, 0.225]}>
+                <capsuleGeometry args={[0.012, 0.08, 6, 8]} />
                 <Mat c="#ffffff" />
               </mesh>
             ))}
-            <mesh position={[0, 0.25, 0.19]} rotation={[-0.25, 0, 0]}>
-              <boxGeometry args={[0.24, 0.09, 0.03]} />
+            <mesh position={[0, 0.24, 0.205]} rotation={[-0.3, 0, 0]} scale={[1, 0.45, 0.22]}>
+              <sphereGeometry args={[0.13, 20, 14]} />
               <Mat c={look.hood} />
             </mesh>
           </group>
@@ -352,12 +389,12 @@ export function Chibi({ look, pose = 'stand', animRef, talking = false, seed = 0
         {Leg({ side: -1, refObj: legR })}
         {holding === 'game' && (
           <group position={[0, 0.3, 0.27]} rotation={[-0.6, 0, 0]}>
-            <mesh castShadow>
-              <boxGeometry args={[0.22, 0.1, 0.03]} />
+            <mesh castShadow rotation={[0, 0, Math.PI / 2]}>
+              <capsuleGeometry args={[0.045, 0.13, 8, 12]} />
               <Mat c="#3b7bd6" rough={0.5} />
             </mesh>
-            <mesh position={[0, 0, 0.017]}>
-              <planeGeometry args={[0.1, 0.07]} />
+            <mesh position={[0, 0, 0.047]}>
+              <planeGeometry args={[0.09, 0.05]} />
               <meshBasicMaterial color="#9ff0c8" toneMapped={false} />
             </mesh>
           </group>
@@ -365,9 +402,9 @@ export function Chibi({ look, pose = 'stand', animRef, talking = false, seed = 0
 
         {/* 머리 */}
         <group ref={head} position={[0, 0.5, 0]}>
-          <group position={[0, 0.27, 0]}>
+          <group position={[0, 0.27, 0]} scale={[1.05, 0.97, 1.02]}>
             <mesh castShadow>
-              <sphereGeometry args={[HEAD_R, 40, 28]} />
+              <sphereGeometry args={[HEAD_R, 48, 32]} />
               <Mat c={SKIN} />
             </mesh>
             {/* 얼굴 (머리 앞쪽 곡면 패치) */}
@@ -383,26 +420,6 @@ export function Chibi({ look, pose = 'stand', animRef, talking = false, seed = 0
               </mesh>
             ))}
             <Hair style={look.hair} color={look.hairColor || '#3a2a22'} />
-            {look.glasses && (
-              <group position={[0, -0.005, HEAD_R * 0.97]}>
-                {[-1, 1].map((s) => (
-                  <mesh key={s} position={[s * 0.1, 0, 0]}>
-                    <torusGeometry args={[0.062, 0.009, 8, 24]} />
-                    <meshStandardMaterial color="#3a2a20" roughness={0.4} metalness={0.3} />
-                  </mesh>
-                ))}
-                <mesh position={[0, 0.01, 0.005]}>
-                  <boxGeometry args={[0.07, 0.012, 0.01]} />
-                  <meshStandardMaterial color="#3a2a20" />
-                </mesh>
-                {[-1, 1].map((s) => (
-                  <mesh key={'a' + s} position={[s * 0.19, 0.01, -0.13]} rotation={[0, s * 0.35, 0]}>
-                    <boxGeometry args={[0.01, 0.012, 0.26]} />
-                    <meshStandardMaterial color="#3a2a20" />
-                  </mesh>
-                ))}
-              </group>
-            )}
           </group>
         </group>
       </group>
@@ -443,7 +460,6 @@ export const LOOKS = {
     legs: '#4f5866',
     shoes: '#5a4a40',
     vest: '#7d7a4e',
-    glasses: true,
     face: { eyes: 'smile', mouth: 'smile', brows: 'soft' },
     scale: 1.16,
   },

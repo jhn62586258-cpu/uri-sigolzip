@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
 import * as THREE from 'three'
 import { Box, RBox, Cyl, Sph, Solid, WalkFloor, Door, Plant } from '../components/Prims'
 import { Squirrel, Persimmon } from '../components/Animals'
-import { Dog, DOG_COLORS } from '../components/Dogs'
+import { Dog, DOG_COLORS, Cat } from '../components/Dogs'
 import { Rain, Fireflies, Steam } from '../components/Effects'
 import { LeafCards, canopyItems, GrassTufts } from '../components/Foliage'
 import { getTex, rng } from '../lib/textures'
@@ -450,9 +450,12 @@ export default function YardScene() {
       <Squirrel position={[4.38, 2.45, -3.88]} rotation={0.2} />
       <DogHouse p={[7.6, 0, -1.6]} />
       <Solid x={7.6} z={-1.6} r={0.78} />
-      {/* 강아지 두 마리: 백구 + 회색이 */}
-      <Dog start={[5.2, -0.4]} center={[5.6, 0.1]} phase={0} colors={DOG_COLORS.baekgu} />
-      <Dog start={[6.2, 0.6]} center={[5.6, 0.1]} phase={Math.PI} colors={DOG_COLORS.gray} />
+      {/* 강아지 두 마리: 흰둥이 해리 + 회색 복실이 */}
+      <Dog start={[5.2, -0.4]} center={[5.6, 0.1]} phase={0} colors={DOG_COLORS.baekgu} name="해리" />
+      <Dog start={[6.2, 0.6]} center={[5.6, 0.1]} phase={Math.PI} colors={DOG_COLORS.gray} name="복실이" />
+      {/* 툇마루 위 마시멜로 고양이 */}
+      <Cat position={[-2.4, 0.06, -3.75]} rotation={0.3} />
+      <Solid x={-2.4} z={-3.75} r={0.28} />
       <Jangdokdae />
       <Solid x={1.0} z={-8.1} w={3.9} d={1.7} />
       <Garden />
@@ -483,7 +486,7 @@ export default function YardScene() {
       <GrassTufts count={240} area={[19.5, 15.5]} center={[0, -0.9]} avoid={[[-10.3, -0.8, -9.5, -2.3], [-1.6, 2.6, -9, -4.9], [3.6, 7.4, -7, -3], [6.6, 8.6, -2.6, -0.6]]} />
       {th.fireflies && <Fireflies count={80} area={[20, 15]} center={[0, -1]} />}
       {th.rain && <Rain
-        count={1100}
+        count={340}
         area={[34, 28]}
         center={[0, -1]}
         height={14}

@@ -5,8 +5,8 @@ import { Html } from '@react-three/drei'
 import { useStore } from '../lib/store'
 import { player } from '../lib/shared'
 import { addSolid, resolveCollisions } from '../lib/collision'
-import { getTex, rng } from '../lib/textures'
-import { petDogs, hugPoodle } from '../lib/actions'
+import { getTex, getFaceTex, rng } from '../lib/textures'
+import { petDogs, hugPoodle, petCat as petCatAction, meow } from '../lib/actions'
 
 const damp = THREE.MathUtils.damp
 
@@ -30,6 +30,24 @@ const clickable = (fn) => ({
   onPointerOver: () => (document.body.style.cursor = 'pointer'),
   onPointerOut: () => (document.body.style.cursor = ''),
 })
+
+// ---------- 이름표 (항상 표시, 가까이 가면 살짝 커짐) ----------
+export function NameTag({ name, y = 1.0, getPos }) {
+  const ref = useRef()
+  useFrame(() => {
+    if (!ref.current || !getPos) return
+    const p = getPos()
+    const near = Math.hypot(player.pos.x - p[0], player.pos.z - p[1]) < 3
+    ref.current.classList.toggle('near', near)
+  })
+  return (
+    <Html position={[0, y, 0]} center zIndexRange={[12, 5]}>
+      <div ref={ref} className="nametag">
+        {name}
+      </div>
+    </Html>
+  )
+}
 
 // ---------- 하트 이펙트 ----------
 export function Hearts({ fxKey, y = 1.1 }) {
@@ -61,6 +79,7 @@ export function Hearts({ fxKey, y = 1.1 }) {
 //  · 주인공이 다가오면: 달려와 꼬리를 세차게 흔들며 깡총깡총 반김
 // =============================================================
 export function Dog({ start, center, phase = 0, colors, name, playRadius = 1.1 }) {
+  const getPos = () => [st.current.pos.x, st.current.pos.z]
   const fxT = useStore((s) => s.fx.dogs || 0)
   const furMap = useMemo(() => getTex(colors.fur, 2, 2), [colors.fur])
   const root = useRef()
@@ -211,6 +230,7 @@ export function Dog({ start, center, phase = 0, colors, name, playRadius = 1.1 }
         </mesh>
       </group>
       <Hearts fxKey="dogs" y={1.05} />
+      {name && <NameTag name={name} y={1.02} getPos={getPos} />}
     </group>
   )
 }
@@ -228,53 +248,35 @@ export const DOG_COLORS = {
 }
 
 // =============================================================
-//  갈색 푸들 (거실) — 곱슬곱슬한 털 뭉치를 인스턴싱한 작은 구로 표현
+//  갈색 푸들 '사월이' (거실)
+//  작은 구를 촘촘히 겹치지 않고, 큼직한 구·캡슐 몇 개로 몽글몽글하게 표현
 // =============================================================
-function CurlBlob({ c, rad, n, rr = 0.055, color, seed = 1 }) {
-  const ref = useRef()
-  useLayoutEffect(() => {
-    const r = rng(seed)
-    const m = new THREE.Matrix4()
-    const col = new THREE.Color()
-    const base = new THREE.Color(color)
-    for (let i = 0; i < n; i++) {
-      const th = r() * Math.PI * 2
-      const ph = Math.acos(r() * 2 - 1)
-      const k = 0.85 + r() * 0.2
-      const s = 0.75 + r() * 0.5
-      m.compose(
-        new THREE.Vector3(Math.sin(ph) * Math.cos(th) * rad[0] * k, Math.cos(ph) * rad[1] * k, Math.sin(ph) * Math.sin(th) * rad[2] * k),
-        new THREE.Quaternion(),
-        new THREE.Vector3(s, s, s)
-      )
-      ref.current.setMatrixAt(i, m)
-      ref.current.setColorAt(i, col.copy(base).offsetHSL(0, (r() - 0.5) * 0.08, (r() - 0.5) * 0.12))
-    }
-    ref.current.instanceMatrix.needsUpdate = true
-    ref.current.instanceColor.needsUpdate = true
-  }, [])
+function Puff({ p, sc, c = '#b0714a', r = 1 }) {
   return (
-    <group position={c}>
-      <mesh scale={rad.map((v) => v * 0.92)} castShadow>
-        <sphereGeometry args={[1, 14, 10]} />
-        <meshStandardMaterial color={color} roughness={1} />
-      </mesh>
-      <instancedMesh ref={ref} args={[null, null, n]} castShadow receiveShadow>
-        <icosahedronGeometry args={[rr, 1]} />
-        <meshStandardMaterial roughness={1} />
-      </instancedMesh>
-    </group>
+    <mesh position={p} scale={sc} castShadow receiveShadow>
+      <sphereGeometry args={[r, 32, 24]} />
+      <meshPhysicalMaterial color={c} roughness={1} sheen={1} sheenRoughness={0.6} sheenColor="#ffe2c8" />
+    </mesh>
+  )
+}
+function Cap({ p, r, len, rot, c = '#b0714a' }) {
+  return (
+    <mesh position={p} rotation={rot} castShadow>
+      <capsuleGeometry args={[r, len, 10, 20]} />
+      <meshPhysicalMaterial color={c} roughness={1} sheen={1} sheenRoughness={0.6} sheenColor="#ffe2c8" />
+    </mesh>
   )
 }
 
-export function Poodle({ position, rotation = 0 }) {
+export function Poodle({ position, rotation = 0, name = '사월이' }) {
   const fxT = useStore((s) => s.fx.poodle || 0)
   const root = useRef()
   const inner = useRef()
   const tail = useRef()
   const head = useRef()
   const st = useRef({ heading: rotation })
-  const B = '#a5653a'
+  const B = '#b0714a'
+  const D = '#9a5f3b'
   useFrame((state, dtRaw) => {
     const dt = Math.min(dtRaw, 0.1)
     const t = state.clock.elapsedTime
@@ -298,52 +300,147 @@ export function Poodle({ position, rotation = 0 }) {
     }
     if (tail.current) tail.current.rotation.z = Math.sin(t * (near || excited ? 24 : 6)) * 0.5
     if (head.current) head.current.rotation.z = near ? Math.sin(t * 3) * 0.15 : Math.sin(t * 0.8) * 0.06
-    if (inner.current) inner.current.scale.y = 1 + (near ? Math.sin(t * 7) * 0.03 : 0)
+    // 숨쉬듯 말랑말랑
+    if (inner.current) {
+      const b = Math.sin(t * (near ? 7 : 2.2)) * (near ? 0.035 : 0.015)
+      inner.current.scale.set(1 - b * 0.5, 1 + b, 1 - b * 0.5)
+    }
   })
   return (
     <group ref={root} {...clickable(hugPoodle)}>
       <group ref={inner}>
-        <CurlBlob c={[0, 0.3, -0.03]} rad={[0.19, 0.22, 0.22]} n={80} color={B} seed={1} />
-        <CurlBlob c={[0, 0.4, 0.11]} rad={[0.14, 0.14, 0.11]} n={40} color={B} seed={2} />
+        {/* 앉은 몸통 + 가슴 털 */}
+        <Puff p={[0, 0.25, -0.04]} sc={[0.21, 0.23, 0.24]} c={B} />
+        <Puff p={[0, 0.36, 0.1]} sc={[0.16, 0.16, 0.13]} c={B} />
+        {/* 뒷다리 엉덩이 */}
         {[-1, 1].map((s) => (
-          <group key={s}>
-            <CurlBlob c={[s * 0.14, 0.13, -0.07]} rad={[0.09, 0.09, 0.11]} n={22} color={B} seed={3 + s} />
-            <mesh position={[s * 0.075, 0.12, 0.13]} castShadow>
-              <cylinderGeometry args={[0.04, 0.035, 0.24, 10]} />
-              <meshStandardMaterial color="#b77548" roughness={1} />
-            </mesh>
-            <CurlBlob c={[s * 0.075, 0.03, 0.15]} rad={[0.055, 0.04, 0.06]} n={14} rr={0.035} color={B} seed={6 + s} />
+          <Puff key={'h' + s} p={[s * 0.13, 0.12, -0.06]} sc={[0.1, 0.1, 0.13]} c={B} />
+        ))}
+        {/* 앞다리(캡슐) + 동그란 발 방울 */}
+        {[-1, 1].map((s) => (
+          <group key={'f' + s}>
+            <Cap p={[s * 0.075, 0.15, 0.14]} r={0.038} len={0.14} c="#bf8159" />
+            <Puff p={[s * 0.075, 0.045, 0.16]} sc={[0.06, 0.05, 0.065]} c={B} />
           </group>
         ))}
-        <group ref={tail} position={[0, 0.3, -0.27]}>
-          <CurlBlob c={[0, 0.06, -0.02]} rad={[0.065, 0.065, 0.065]} n={18} rr={0.04} color={B} seed={9} />
+        {/* 꼬리 방울 */}
+        <group ref={tail} position={[0, 0.3, -0.26]}>
+          <Cap p={[0, 0.03, -0.01]} r={0.022} len={0.06} rot={[-0.5, 0, 0]} c="#bf8159" />
+          <Puff p={[0, 0.09, -0.04]} sc={[0.07, 0.07, 0.07]} c={B} />
         </group>
-        <group ref={head} position={[0, 0.64, 0.1]}>
-          <CurlBlob c={[0, 0, 0]} rad={[0.16, 0.15, 0.15]} n={60} color={B} seed={10} />
-          <CurlBlob c={[0, 0.15, -0.02]} rad={[0.1, 0.08, 0.1]} n={26} rr={0.045} color={B} seed={11} />
+        {/* 머리 */}
+        <group ref={head} position={[0, 0.6, 0.1]}>
+          <Puff p={[0, 0, 0]} sc={[0.16, 0.15, 0.15]} c={B} />
+          {/* 정수리 방울 */}
+          <Puff p={[0, 0.14, -0.02]} sc={[0.11, 0.09, 0.1]} c={B} />
+          {/* 축 늘어진 귀 (긴 캡슐) */}
           {[-1, 1].map((s) => (
-            <CurlBlob key={s} c={[s * 0.16, -0.09, 0]} rad={[0.06, 0.13, 0.07]} n={24} rr={0.045} color="#97592f" seed={12 + s} />
+            <Cap key={s} p={[s * 0.15, -0.07, 0.0]} r={0.055} len={0.12} rot={[0, 0, s * 0.18]} c={D} />
           ))}
-          <S p={[0, -0.05, 0.15]} sc={[0.075, 0.06, 0.085]} c="#c38c5c" />
-          <S p={[0, -0.03, 0.235]} r={0.026} c="#2a1a14" />
+          {/* 주둥이 */}
+          <Puff p={[0, -0.045, 0.13]} sc={[0.075, 0.06, 0.075]} c="#cf9a6c" />
+          <Puff p={[0, -0.025, 0.2]} sc={[0.026, 0.022, 0.022]} c="#2a1a14" />
           {[-1, 1].map((s) => (
             <group key={'e' + s}>
-              <S p={[s * 0.06, 0.03, 0.14]} r={0.026} c="#1d1410" />
-              <S p={[s * 0.054, 0.04, 0.162]} r={0.007} c="#ffffff" />
+              <Puff p={[s * 0.06, 0.03, 0.135]} sc={[0.024, 0.028, 0.02]} c="#1d1410" />
+              <Puff p={[s * 0.053, 0.042, 0.152]} sc={[0.007, 0.007, 0.007]} c="#ffffff" />
+              <Puff p={[s * 0.1, -0.03, 0.115]} sc={[0.03, 0.017, 0.012]} c="#ffa9a9" />
             </group>
           ))}
-          <mesh position={[0, -0.1, 0.17]} rotation={[0.4, 0, 0]}>
-            <sphereGeometry args={[0.022, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+          <mesh position={[0, -0.09, 0.17]} rotation={[0.4, 0, 0]}>
+            <sphereGeometry args={[0.022, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
             <meshStandardMaterial color="#ef8a8a" />
           </mesh>
           {/* 리본 */}
-          <mesh position={[0.06, 0.2, 0.02]} rotation={[0, 0, 0.6]}>
-            <torusGeometry args={[0.03, 0.012, 6, 12]} />
-            <meshStandardMaterial color="#e8708a" />
-          </mesh>
+          {[-1, 1].map((s) => (
+            <Puff key={'r' + s} p={[0.07 + s * 0.035, 0.2, 0.02]} sc={[0.035, 0.022, 0.015]} c="#ee7f98" />
+          ))}
+          <Puff p={[0.07, 0.2, 0.025]} sc={[0.014, 0.014, 0.014]} c="#d9607c" />
         </group>
       </group>
       <Hearts fxKey="poodle" y={1.05} />
+      <NameTag name={name} y={1.0} getPos={() => [position[0], position[2]]} />
+    </group>
+  )
+}
+
+// =============================================================
+//  마당 고양이 (마시멜로 스타일 치즈냥)
+//  · 가까이 가면 "야옹~", 클릭/버튼으로 쓰다듬으면 골골송 + 하트
+// =============================================================
+export function Cat({ position, rotation = 0 }) {
+  const fxT = useStore((s) => s.fx.cat || 0)
+  const near = useStore((s) => s.near.includes('cat'))
+  const faceTex = useMemo(() => getFaceTex({ eyes: 'smile', mouth: 'cat', blush: 'rgba(255,140,140,0.75)' }), [])
+  const root = useRef()
+  const body = useRef()
+  const tail = useRef()
+  const head = useRef()
+  const st = useRef({ heading: rotation })
+  const W = '#fff7ec'
+  const O = '#f2b16a'
+  useEffect(() => {
+    if (near) meow()
+  }, [near])
+  useFrame((state, dtRaw) => {
+    const dt = Math.min(dtRaw, 0.1)
+    const t = state.clock.elapsedTime
+    const dx = player.pos.x - position[0]
+    const dz = player.pos.z - position[2]
+    const close = Math.hypot(dx, dz) < 2.4
+    const since = (performance.now() - fxT) / 1000
+    const petted = fxT && since < 2.2
+    const s = st.current
+    s.heading = angLerp(s.heading, close ? Math.atan2(dx, dz) : rotation, Math.min(1, dt * 3))
+    if (root.current) root.current.rotation.y = s.heading
+    if (body.current) {
+      const b = petted ? Math.sin(t * 14) * 0.02 : Math.sin(t * 1.8) * 0.015
+      body.current.scale.set(1 - b * 0.5, 1 + b, 1 - b * 0.5)
+    }
+    if (tail.current) tail.current.rotation.y = Math.sin(t * (petted ? 6 : 1.5)) * (petted ? 0.6 : 0.35)
+    if (head.current) {
+      head.current.rotation.z = petted ? Math.sin(t * 5) * 0.2 : Math.sin(t * 0.7) * 0.08
+      head.current.rotation.x = petted ? 0.15 : 0
+    }
+  })
+  return (
+    <group position={position}>
+      <group ref={root} {...clickable(petCatAction)}>
+        <group ref={body}>
+          {/* 식빵 자세 몸통 */}
+          <Puff p={[0, 0.17, -0.04]} sc={[0.2, 0.17, 0.25]} c={W} />
+          <Puff p={[0, 0.25, -0.12]} sc={[0.15, 0.08, 0.13]} c={O} />
+          {/* 앞발 */}
+          {[-1, 1].map((s) => (
+            <Puff key={s} p={[s * 0.08, 0.04, 0.17]} sc={[0.055, 0.04, 0.07]} c={W} />
+          ))}
+          {/* 꼬리 */}
+          <group ref={tail} position={[0, 0.08, -0.27]}>
+            <Cap p={[0.06, 0.02, -0.04]} r={0.035} len={0.16} rot={[Math.PI / 2, 0, 0.9]} c={O} />
+          </group>
+          {/* 머리 */}
+          <group ref={head} position={[0, 0.38, 0.1]}>
+            <mesh castShadow scale={[1.08, 0.95, 1]}>
+              <sphereGeometry args={[0.16, 32, 24]} />
+              <meshPhysicalMaterial color={W} roughness={1} sheen={1} sheenRoughness={0.6} sheenColor="#ffffff" />
+            </mesh>
+            <mesh scale={[1.08, 0.95, 1]} renderOrder={2}>
+              <sphereGeometry args={[0.1615, 32, 24, Math.PI / 2 - 0.85, 1.7, 0.95, 1.2]} />
+              <meshStandardMaterial map={faceTex} transparent depthWrite={false} roughness={1} polygonOffset polygonOffsetFactor={-2} />
+            </mesh>
+            {/* 이마 무늬 */}
+            <Puff p={[0, 0.1, 0.02]} sc={[0.09, 0.05, 0.1]} c={O} />
+            {/* 동그란 귀 */}
+            {[-1, 1].map((s) => (
+              <group key={'ear' + s} position={[s * 0.1, 0.13, 0]} rotation={[0, 0, -s * 0.35]}>
+                <Puff p={[0, 0, 0]} sc={[0.055, 0.07, 0.035]} c={s > 0 ? O : W} />
+                <Puff p={[0, -0.005, 0.018]} sc={[0.03, 0.045, 0.015]} c="#ffc2c2" />
+              </group>
+            ))}
+          </group>
+        </group>
+        <Hearts fxKey="cat" y={0.85} />
+      </group>
     </group>
   )
 }

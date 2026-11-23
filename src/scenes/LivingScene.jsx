@@ -405,8 +405,8 @@ export default function LivingScene() {
       <Mom position={[3.1, 0.24, -2.55]} heading={Math.PI} />
       <DiningTable />
       <ServedDish />
-      {/* 갈색 푸들 몽글이 */}
-      <Poodle position={[-3.4, 0.012, -0.55]} rotation={0.8} />
+      {/* 갈색 푸들 사월이 */}
+      <Poodle position={[-3.4, 0.012, -0.55]} rotation={0.8} name="사월이" />
       <Solid x={-3.4} z={-0.55} r={0.3} />
     </group>
   )

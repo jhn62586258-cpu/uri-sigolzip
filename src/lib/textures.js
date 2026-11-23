@@ -324,7 +324,27 @@ function drawFace(g, w, h, opts) {
   // 입
   g.lineWidth = w * 0.018
   const my = h * 0.665
-  if (opts.mouth === 'smirk') {
+  if (opts.mouth === 'cat') {
+    // ω 고양이 입 + 수염
+    g.beginPath()
+    g.arc(cx - w * 0.025, my - h * 0.01, w * 0.025, 0.1 * Math.PI, 0.9 * Math.PI)
+    g.arc(cx + w * 0.025, my - h * 0.01, w * 0.025, 0.1 * Math.PI, 0.9 * Math.PI)
+    g.stroke()
+    g.fillStyle = '#f08a8a'
+    g.beginPath()
+    g.ellipse(cx, my - h * 0.035, w * 0.02, h * 0.013, 0, 0, Math.PI * 2)
+    g.fill()
+    g.strokeStyle = 'rgba(90,60,45,0.55)'
+    g.lineWidth = w * 0.008
+    ;[-1, 1].forEach((sd) =>
+      [-0.02, 0.015].forEach((dy) => {
+        g.beginPath()
+        g.moveTo(cx + sd * w * 0.11, my + h * dy)
+        g.lineTo(cx + sd * w * 0.24, my + h * dy * 2.2 - h * 0.005)
+        g.stroke()
+      })
+    )
+  } else if (opts.mouth === 'smirk') {
     g.beginPath()
     g.moveTo(cx - w * 0.03, my)
     g.quadraticCurveTo(cx + w * 0.01, my + h * 0.012, cx + w * 0.04, my - h * 0.012)

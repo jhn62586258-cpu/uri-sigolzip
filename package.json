@@ -1,0 +1,23 @@
+{
+  "name": "uri-sigolzip",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "우리 시골집 - 따뜻한 3D 웹 힐링 공간 (Vite + React + React Three Fiber)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@react-three/drei": "^9.117.3",
+    "@react-three/fiber": "^8.17.10",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11"
+  }
+}

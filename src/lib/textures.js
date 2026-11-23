@@ -162,10 +162,10 @@ function drawPlaid(g, w, h, [base, c1, c2, c3]) {
 // ---------------- 잔디 ----------------
 function drawGrass(g, w, h) {
   const r = rng(5)
-  g.fillStyle = '#6f9a46'
+  g.fillStyle = '#7f9a4c'
   g.fillRect(0, 0, w, h)
   for (let i = 0; i < 260; i++) {
-    g.fillStyle = `rgba(${60 + r() * 50},${110 + r() * 50},${40 + r() * 20},0.35)`
+    g.fillStyle = `rgba(${95 + r() * 60},${120 + r() * 45},${45 + r() * 25},0.35)`
     g.beginPath()
     g.ellipse(r() * w, r() * h, 10 + r() * 30, 6 + r() * 20, r() * 3, 0, Math.PI * 2)
     g.fill()
@@ -173,7 +173,7 @@ function drawGrass(g, w, h) {
   for (let i = 0; i < 4200; i++) {
     const x = r() * w
     const y = r() * h
-    g.strokeStyle = `hsl(${85 + r() * 25},${40 + r() * 20}%,${28 + r() * 28}%)`
+    g.strokeStyle = `hsl(${62 + r() * 28},${34 + r() * 20}%,${30 + r() * 26}%)`
     g.lineWidth = 1 + r()
     g.beginPath()
     g.moveTo(x, y)
@@ -520,6 +520,206 @@ function drawClock(g, w, h) {
   }
 }
 
+
+// ---------------- 크림 아이보리 회벽 ----------------
+function drawPlaster(g, w, h, base = '#efe6d5') {
+  const r = rng(23)
+  g.fillStyle = base
+  g.fillRect(0, 0, w, h)
+  // 흙손 자국 (넓고 은은한 얼룩)
+  for (let i = 0; i < 120; i++) {
+    const x = r() * w
+    const y = r() * h
+    const rad = 30 + r() * 60
+    const grd = g.createRadialGradient(x, y, 0, x, y, rad)
+    const light = r() < 0.5
+    grd.addColorStop(0, light ? 'rgba(255,252,244,0.12)' : 'rgba(190,170,140,0.035)')
+    grd.addColorStop(1, 'rgba(0,0,0,0)')
+    g.fillStyle = grd
+    g.fillRect(x - rad, y - rad, rad * 2, rad * 2)
+  }
+  for (let i = 0; i < 9000; i++) {
+    g.fillStyle = r() < 0.5 ? `rgba(255,255,250,${r() * 0.1})` : `rgba(150,125,95,${r() * 0.045})`
+    g.fillRect(r() * w, r() * h, 1 + r() * 1.5, 1 + r() * 1.5)
+  }
+}
+
+// ---------------- 잎사귀 (알파) ----------------
+function leafPath(g, x, y, len, wid, ang) {
+  g.save()
+  g.translate(x, y)
+  g.rotate(ang)
+  g.beginPath()
+  g.moveTo(0, 0)
+  g.bezierCurveTo(wid, -len * 0.25, wid * 0.8, -len * 0.8, 0, -len)
+  g.bezierCurveTo(-wid * 0.8, -len * 0.8, -wid, -len * 0.25, 0, 0)
+  g.closePath()
+  g.restore()
+}
+function drawLeafShape(g, x, y, len, wid, ang, col, r) {
+  leafPath(g, x, y, len, wid, ang)
+  const grd = g.createLinearGradient(x - wid, y - len, x + wid, y)
+  grd.addColorStop(0, col[0])
+  grd.addColorStop(1, col[1])
+  g.fillStyle = grd
+  g.fill()
+  g.save()
+  g.translate(x, y)
+  g.rotate(ang)
+  g.strokeStyle = 'rgba(255,255,220,0.35)'
+  g.lineWidth = Math.max(1, wid * 0.08)
+  g.beginPath()
+  g.moveTo(0, 0)
+  g.quadraticCurveTo(wid * 0.1, -len * 0.5, 0, -len * 0.95)
+  g.stroke()
+  g.strokeStyle = 'rgba(255,255,220,0.15)'
+  g.lineWidth = 1
+  for (let k = 1; k < 5; k++) {
+    const yy = (-len * k) / 5.5
+    g.beginPath()
+    g.moveTo(0, yy)
+    g.lineTo(wid * 0.55, yy - len * 0.1)
+    g.moveTo(0, yy)
+    g.lineTo(-wid * 0.55, yy - len * 0.1)
+    g.stroke()
+  }
+  g.restore()
+}
+function drawLeaf(g, w, h) {
+  g.clearRect(0, 0, w, h)
+  drawLeafShape(g, w / 2, h * 0.97, h * 0.92, w * 0.3, 0, ['#ffffff', '#cfcfcf'])
+}
+function drawLeafCluster(g, w, h) {
+  g.clearRect(0, 0, w, h)
+  const r = rng(41)
+  g.strokeStyle = '#6b5236'
+  g.lineWidth = 3
+  g.beginPath()
+  g.moveTo(w / 2, h)
+  g.lineTo(w / 2, h * 0.3)
+  g.stroke()
+  for (let i = 0; i < 11; i++) {
+    const t = i / 10
+    const side = i % 2 ? 1 : -1
+    const x = w / 2
+    const y = h * (0.95 - t * 0.62)
+    const ang = side * (0.6 + r() * 0.5) - (i === 10 ? side * 0.6 : 0)
+    const l = 60 + r() * 30
+    const shade = 0.82 + r() * 0.18
+    const c = Math.round(255 * shade)
+    drawLeafShape(g, x, y, l, 16 + r() * 6, ang, [`rgb(${c},${c},${c})`, `rgb(${c - 50},${c - 50},${c - 50})`], r)
+  }
+}
+function drawGrassTuft(g, w, h) {
+  g.clearRect(0, 0, w, h)
+  const r = rng(12)
+  for (let i = 0; i < 26; i++) {
+    const x = w * 0.2 + r() * w * 0.6
+    const top = h * (0.05 + r() * 0.4)
+    const bend = (r() - 0.5) * w * 0.5
+    const c = 200 + r() * 55
+    g.strokeStyle = `rgb(${c},${c},${c - 20})`
+    g.lineWidth = 3 + r() * 3
+    g.lineCap = 'round'
+    g.beginPath()
+    g.moveTo(x, h)
+    g.quadraticCurveTo(x + bend * 0.3, (h + top) / 2, x + bend, top)
+    g.stroke()
+  }
+}
+function drawTerracotta(g, w, h) {
+  const r = rng(19)
+  g.fillStyle = '#c0714a'
+  g.fillRect(0, 0, w, h)
+  for (let i = 0; i < 5000; i++) {
+    g.fillStyle = r() < 0.5 ? `rgba(240,190,150,${r() * 0.18})` : `rgba(110,50,25,${r() * 0.14})`
+    g.fillRect(r() * w, r() * h, 1 + r() * 2, 1 + r() * 2)
+  }
+  for (let i = 0; i < 30; i++) {
+    g.fillStyle = `rgba(235,225,205,${r() * 0.25})`
+    g.beginPath()
+    g.ellipse(r() * w, r() * h, 6 + r() * 22, 3 + r() * 8, 0, 0, Math.PI * 2)
+    g.fill()
+  }
+}
+function drawSkyGrad(g, w, h, stops, stars) {
+  const grad = g.createLinearGradient(0, 0, 0, h)
+  stops.forEach(([o, c]) => grad.addColorStop(o, c))
+  g.fillStyle = grad
+  g.fillRect(0, 0, w, h)
+  if (stars) {
+    const r = rng(99)
+    for (let i = 0; i < stars; i++) {
+      const y = r() * h * 0.55
+      g.fillStyle = `rgba(255,255,240,${0.3 + r() * 0.7})`
+      g.fillRect(r() * w, y, r() < 0.1 ? 2 : 1, r() < 0.1 ? 2 : 1)
+    }
+  } else {
+    const r = rng(78)
+    for (let i = 0; i < 40; i++) {
+      g.fillStyle = `rgba(255,240,220,${0.04 + r() * 0.08})`
+      g.beginPath()
+      g.ellipse(r() * w, r() * h * 0.5, 40 + r() * 120, 8 + r() * 20, 0, 0, Math.PI * 2)
+      g.fill()
+    }
+  }
+}
+function drawNightView(g, w, h) {
+  drawSkyGrad(g, w, h, [[0, '#0e1430'], [0.55, '#28345e'], [1, '#3a3f5e']], 260)
+  g.fillStyle = '#fff6d8'
+  g.beginPath()
+  g.arc(w * 0.75, h * 0.2, 16, 0, Math.PI * 2)
+  g.fill()
+  g.fillStyle = 'rgba(255,246,216,0.12)'
+  g.beginPath()
+  g.arc(w * 0.75, h * 0.2, 34, 0, Math.PI * 2)
+  g.fill()
+  const hill = (base, amp, color, seed) => {
+    g.fillStyle = color
+    g.beginPath()
+    g.moveTo(0, h)
+    for (let x = 0; x <= w; x += 8) g.lineTo(x, base + Math.sin(x * 0.012 + seed) * amp + Math.sin(x * 0.03) * amp * 0.4)
+    g.lineTo(w, h)
+    g.fill()
+  }
+  hill(h * 0.5, 20, '#1d2540', 3)
+  hill(h * 0.62, 14, '#18203a', 7)
+  hill(h * 0.76, 10, '#141a2c', 13)
+  const r = rng(4)
+  for (let i = 0; i < 18; i++) {
+    g.fillStyle = `rgba(220,255,140,${0.5 + r() * 0.5})`
+    g.beginPath()
+    g.arc(r() * w, h * (0.7 + r() * 0.28), 1.5 + r() * 1.5, 0, Math.PI * 2)
+    g.fill()
+  }
+  g.fillStyle = 'rgba(255,200,120,0.9)'
+  ;[[0.2, 0.68], [0.24, 0.69], [0.55, 0.72]].forEach(([x, y]) => g.fillRect(w * x, h * y, 4, 3))
+}
+function drawRainView(g, w, h) {
+  drawLandscape(g, w, h, { top: '#a9b6c2', bottom: '#e3ddd0', seed: 21 })
+  g.fillStyle = 'rgba(200,210,220,0.25)'
+  g.fillRect(0, 0, w, h)
+  g.strokeStyle = 'rgba(255,255,255,0.35)'
+  const r = rng(3)
+  for (let i = 0; i < 140; i++) {
+    const x = r() * w
+    const y = r() * h
+    g.beginPath()
+    g.moveTo(x, y)
+    g.lineTo(x - 2, y + 10)
+    g.stroke()
+  }
+}
+function drawCork(g, w, h) {
+  const r = rng(14)
+  g.fillStyle = '#b98a5a'
+  g.fillRect(0, 0, w, h)
+  for (let i = 0; i < 6000; i++) {
+    g.fillStyle = r() < 0.5 ? `rgba(90,55,25,${r() * 0.3})` : `rgba(230,190,140,${r() * 0.3})`
+    g.fillRect(r() * w, r() * h, 1 + r() * 2, 1 + r() * 2)
+  }
+}
+
 // =============================================================
 const DEFS = {
   brick: [512, 512, (g, w, h) => drawBrick(g, w, h, false)],
@@ -546,6 +746,18 @@ const DEFS = {
   wicker: [128, 128, drawWicker],
   sketch: [256, 200, drawPaper],
   clock: [128, 128, drawClock],
+  plaster: [512, 512, (g, w, h) => drawPlaster(g, w, h)],
+  plasterOut: [512, 512, (g, w, h) => drawPlaster(g, w, h, '#f4e7cf')],
+  leaf: [64, 128, drawLeaf],
+  leafCluster: [256, 256, drawLeafCluster],
+  grassTuft: [128, 128, drawGrassTuft],
+  terracotta: [256, 128, drawTerracotta],
+  skySunset: [64, 512, (g, w, h) => drawSkyGrad(g, w, h, [[0, '#4d5b8c'], [0.35, '#c98a8a'], [0.55, '#f6b27a'], [0.65, '#ffd9a0'], [1, '#f0c79a']])],
+  skyNight: [256, 512, (g, w, h) => drawSkyGrad(g, w, h, [[0, '#070b1d'], [0.45, '#18234a'], [0.62, '#2f3a62'], [1, '#262a44']], 700)],
+  viewRain: [512, 320, drawRainView],
+  viewNight: [512, 320, drawNightView],
+  furGray: [128, 128, (g, w, h) => drawFur(g, w, h, '#a8a39b')],
+  cork: [256, 256, drawCork],
 }
 
 /** key 로 텍스처를 얻습니다. repeat 값별로 캐시됩니다. */
@@ -572,6 +784,46 @@ export function getFaceTex(opts = {}) {
   const t = new THREE.CanvasTexture(c)
   t.colorSpace = THREE.SRGBColorSpace
   t.anisotropy = 4
+  texCache.set(key, t)
+  return t
+}
+
+/** 메모(포스트잇) 텍스처: 글자를 캔버스에 직접 써서 코르크보드에 붙임 */
+export function getNoteTex(text, color = '#fff2a8', done = false) {
+  const key = 'note:' + text + color + done
+  if (texCache.has(key)) return texCache.get(key)
+  const c = document.createElement('canvas')
+  c.width = 256
+  c.height = 256
+  const g = c.getContext('2d')
+  g.fillStyle = color
+  g.fillRect(0, 0, 256, 256)
+  g.fillStyle = 'rgba(0,0,0,0.06)'
+  g.fillRect(0, 0, 256, 26)
+  g.fillStyle = '#4a3326'
+  g.font = '700 38px "Pretendard","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif'
+  g.textBaseline = 'top'
+  const chars = [...text]
+  const lines = []
+  let line = ''
+  chars.forEach((ch) => {
+    if (g.measureText(line + ch).width > 220) {
+      lines.push(line)
+      line = ch
+    } else line += ch
+  })
+  if (line) lines.push(line)
+  lines.slice(0, 5).forEach((l, i) => g.fillText(l, 16, 40 + i * 44))
+  if (done) {
+    g.strokeStyle = 'rgba(200,60,40,0.7)'
+    g.lineWidth = 4
+    g.beginPath()
+    g.moveTo(14, 60)
+    g.lineTo(240, 60)
+    g.stroke()
+  }
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
   texCache.set(key, t)
   return t
 }

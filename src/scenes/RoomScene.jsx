@@ -3,9 +3,13 @@ import { Box, RBox, Cyl, Sph, Solid, RoomShell, Window, Door, Plant } from '../c
 import { CatPlush } from '../components/Animals'
 import { Brother } from '../components/Family'
 import { FairyLights, FlickerLight, Screen } from '../components/Effects'
-import { getTex, rng } from '../lib/textures'
-import { playSpot } from '../lib/actions'
+import { getTex, getNoteTex, rng } from '../lib/textures'
+import { playSpot, runAction } from '../lib/actions'
 import { useStore } from '../lib/store'
+import { useTheme } from '../lib/theme'
+import { TRACKS } from './config'
+import { useFrame } from '@react-three/fiber'
+import { useRef } from 'react'
 
 // =============================================================
 //  [내 방 아지트] — 6 × 5 m 의 작은 방, 천장 4 m
@@ -90,6 +94,91 @@ function Desk() {
       </group>
       {/* 책 더미 */}
       <Books p={[1.42, 1.29, -2.28]} width={0.25} h={0.28} seed={4} />
+    </group>
+  )
+}
+
+// 💿 빈티지 턴테이블 (책상 옆 낮은 원목 장 위)
+function Turntable() {
+  const track = useStore((s) => s.roomTrack)
+  const rec = useRef()
+  const arm = useRef()
+  const playing = track !== 'off'
+  const color = (TRACKS.find((t) => t.id === track) || TRACKS[0]).color
+  useFrame((_, dt) => {
+    if (rec.current && playing) rec.current.rotation.y -= dt * 3.5
+    if (arm.current) arm.current.rotation.y = THREE_damp(arm.current.rotation.y, playing ? -0.45 : 0, dt)
+  })
+  return (
+    <group position={[2.45, 0, -2.05]} onClick={(e) => (e.stopPropagation(), e.delta < 8 && runAction('turntable'))}>
+      <RBox p={[0, 0.33, 0]} s={[0.8, 0.66, 0.5]} c="#8a5d3b" map={getTex('woodLight', 1, 1)} rad={0.03} />
+      <Box p={[0, 0.33, 0.252]} s={[0.7, 0.01, 0.01]} c="#5a3d2a" />
+      {/* LP 슬리브 */}
+      {['#e8b45a', '#7f9bbd', '#8a7a6a'].map((c, i) => (
+        <Box key={c} p={[-0.25 + i * 0.03, 0.2, 0.0 + i * 0.01]} s={[0.02, 0.32, 0.32]} r={[0, 0, 0.08 * i]} c={c} />
+      ))}
+      <group position={[0, 0.66, 0]}>
+        <RBox p={[0, 0.05, 0]} s={[0.56, 0.1, 0.42]} c="#6b4a33" rad={0.02} rough={0.5} />
+        <Cyl p={[-0.06, 0.11, 0]} args={[0.17, 0.17, 0.02, 32]} c="#9a9a9a" metal={0.6} rough={0.3} />
+        <group ref={rec} position={[-0.06, 0.125, 0]}>
+          <Cyl args={[0.16, 0.16, 0.01, 32]} c="#141414" rough={0.25} />
+          <Cyl p={[0, 0.006, 0]} args={[0.055, 0.055, 0.003, 20]} c={color} />
+          <Box p={[0.03, 0.009, 0]} s={[0.02, 0.002, 0.008]} c="#ffffff" />
+        </group>
+        <group ref={arm} position={[0.2, 0.13, -0.14]}>
+          <Cyl args={[0.025, 0.025, 0.05, 10]} c="#c0c0c0" metal={0.7} />
+          <Box p={[-0.05, 0.03, 0.1]} s={[0.012, 0.012, 0.24]} r={[0, 0.4, 0]} c="#d0d0d0" metal={0.7} rough={0.3} />
+        </group>
+        <Sph p={[0.2, 0.12, 0.14]} rad={0.02} c={playing ? '#9ff08a' : '#5a5a5a'} emissive={playing ? '#5fd04a' : '#000000'} ei={1.5} />
+      </group>
+    </group>
+  )
+}
+function THREE_damp(a, b, dt) {
+  return a + (b - a) * Math.min(1, dt * 4)
+}
+
+// 📌 메모 코르크보드 (노트에서 꽂아둔 문구 / 할 일)
+function Corkboard() {
+  const notes = useStore((s) => s.notes)
+  const pinned = notes.filter((n) => n.pinned).slice(0, 6)
+  const COLORS = ['#fff2a8', '#ffd9e0', '#d8f0d0', '#d6e6ff', '#ffe2c2', '#efe2ff']
+  return (
+    <group position={[2.05, 2.15, -2.47]} onClick={(e) => (e.stopPropagation(), e.delta < 8 && runAction('notebook'))}>
+      <Box p={[0, 0, 0]} s={[1.25, 0.9, 0.04]} c="#7a5236" />
+      <mesh position={[0, 0, 0.022]}>
+        <planeGeometry args={[1.13, 0.78]} />
+        <meshStandardMaterial map={getTex('cork', 1, 1)} roughness={1} />
+      </mesh>
+      {pinned.map((n, i) => {
+        const x = -0.38 + (i % 3) * 0.38
+        const y = 0.17 - Math.floor(i / 3) * 0.37
+        const text = (n.kind === 'todo' ? (n.done ? '☑ ' : '☐ ') : '') + n.text
+        return (
+          <group key={n.id} position={[x, y, 0.03]} rotation={[0, 0, ((i * 37) % 7 - 3) * 0.03]}>
+            <mesh>
+              <planeGeometry args={[0.3, 0.3]} />
+              <meshStandardMaterial map={getNoteTex(text, COLORS[i % COLORS.length], n.done)} roughness={1} />
+            </mesh>
+            <Sph p={[0, 0.13, 0.01]} rad={0.015} c={['#e36b6b', '#4f79a8', '#e8c25a'][i % 3]} />
+          </group>
+        )
+      })}
+    </group>
+  )
+}
+
+// 📖 책상 위 노트
+function Notebook() {
+  return (
+    <group position={[-0.05, 1.3, -1.78]} rotation={[0, 0.2, 0]} onClick={(e) => (e.stopPropagation(), e.delta < 8 && runAction('notebook'))}>
+      <Box p={[0, 0.006, 0]} s={[0.36, 0.012, 0.26]} c="#8a6a4a" />
+      <Box p={[-0.085, 0.014, 0]} s={[0.17, 0.006, 0.24]} c="#fbf7ee" />
+      <Box p={[0.085, 0.014, 0]} s={[0.17, 0.006, 0.24]} c="#fbf7ee" />
+      {[0, 1, 2, 3].map((i) => (
+        <Box key={i} p={[0.085, 0.018, -0.07 + i * 0.045]} s={[0.12, 0.002, 0.004]} c="#b8a898" cast={false} />
+      ))}
+      <Cyl p={[0.12, 0.022, 0.05]} args={[0.006, 0.006, 0.15, 6]} r={[0, 0.6, Math.PI / 2]} c="#4f79a8" />
     </group>
   )
 }
@@ -213,15 +302,17 @@ function Bookshelf() {
 
 export default function RoomScene() {
   const rug = useMemo(() => getTex('furWhite', 3, 3), [])
+  const th = useTheme()
+  const I = th.indoor
   return (
     <group>
-      <color attach="background" args={['#1f1611']} />
-      <ambientLight intensity={0.28} color="#ffdcb0" />
-      <hemisphereLight args={['#ffe8c8', '#6a4a35', 0.4]} />
+      <color attach="background" args={[I.bg]} />
+      <ambientLight intensity={I.amb * 0.8} color="#ffdcb0" />
+      <hemisphereLight args={[I.hemi[0], I.hemi[1], I.hemi[2] * 0.75]} />
       <directionalLight
         position={[2, 6.5, -7]}
-        intensity={1.0}
-        color="#ffd49a"
+        intensity={I.sunI}
+        color={I.sun}
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-5}
@@ -233,9 +324,9 @@ export default function RoomScene() {
       />
       <pointLight position={[0, H - 0.6, 0.5]} color="#ffdcae" intensity={1.4} distance={7} decay={1.4} />
 
-      <RoomShell w={W} d={D} h={H} floorTex="woodDark" beams={2} />
-      <Window p={[0.4, 2.65, -2.48]} w={1.6} h={1.1} view="sunset" glow={1.05} />
-      <Door p={[2.97, 0, 0.8]} rotY={-Math.PI / 2} to="living" label="🛋️ 거실로" color="#f2cf4a" frame="#d6a82a" w={0.95} />
+      <RoomShell w={W} d={D} h={H} floorTex="woodDark" beams={2} accent="back" />
+      <Window p={[0.4, 2.65, -2.48]} w={1.6} h={1.1} glow={1.05} />
+      <Door p={[2.92, 0, 0.8]} rotY={-Math.PI / 2} to="living" label="🛋️ 거실로" color="#f2cf4a" frame="#d6a82a" w={0.95} />
 
       {/* 폭신한 러그 */}
       <mesh position={[0.3, 0.008, 0.5]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
@@ -252,11 +343,12 @@ export default function RoomScene() {
       <Solid x={-2.3} z={-2.25} w={1.22} d={0.42} />
 
       {/* 오른쪽 벽: 바구니, 화분, 수납함 */}
-      <RBox p={[2.55, 0.22, -2.05]} s={[0.6, 0.44, 0.5]} c="#b08850" map={getTex('wicker', 2, 1)} rad={0.04} />
-      <Books p={[2.55, 0.44, -2.05]} width={0.45} h={0.2} seed={8} />
-      <Solid x={2.55} z={-2.05} w={0.62} d={0.52} />
-      <Plant p={[2.55, 0, -1.25]} s={1.3} leaf="#5f8f45" />
-      <Solid x={2.55} z={-1.25} r={0.28} />
+      <Turntable />
+      <Solid x={2.45} z={-2.05} w={0.82} d={0.52} />
+      <Corkboard />
+      <Notebook />
+      <Plant p={[2.6, 0, -1.2]} s={1.3} leaf="#5f8040" variant="tall" />
+      <Solid x={2.6} z={-1.2} r={0.28} />
       <RBox p={[2.6, 0.2, 2.05]} s={[0.55, 0.4, 0.5]} c="#e9dcc8" rad={0.04} />
       <RBox p={[2.6, 0.55, 2.05]} s={[0.5, 0.3, 0.45]} c="#c9d6e2" rad={0.04} />
       <Solid x={2.6} z={2.05} w={0.58} d={0.52} />

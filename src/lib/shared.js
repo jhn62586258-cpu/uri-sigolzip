@@ -9,6 +9,7 @@ export const player = {
   pendingPose: null, // 목표 도착 후 취할 자세
   pendingHeading: null,
   stuckTime: 0,
+  seat: null, // 평상 등에 앉아 있을 때 { x, y, z, heading, exit }
 }
 
 export const input = {

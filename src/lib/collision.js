@@ -21,10 +21,11 @@ export function circleSolid(x, z, r) {
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v)
 
 /** pos(Vector3)를 반지름 r 의 원으로 보고 모든 충돌체 밖으로 밀어냅니다. */
-export function resolveCollisions(pos, r) {
+export function resolveCollisions(pos, r, skip = null) {
   for (let iter = 0; iter < 5; iter++) {
     let moved = false
     for (const s of solids) {
+      if (s === skip) continue
       if (s.type === 'circle') {
         let dx = pos.x - s.x
         let dz = pos.z - s.z

@@ -3,7 +3,8 @@ import { Html } from '@react-three/drei'
 import { Chibi, LOOKS } from './Chibi'
 import { Solid } from './Prims'
 import { useStore, setState } from '../lib/store'
-import { talkTo } from '../lib/actions'
+import { talkTo, offerSnack, clearOffer, acceptSnack } from '../lib/actions'
+import { Hearts } from './Dogs'
 import { audio } from '../audio/AudioEngine'
 import { BROTHER_CHOICES } from '../scenes/config'
 
@@ -24,6 +25,51 @@ function useBubble(id) {
   return bubble && bubble.who === id ? bubble.text : null
 }
 
+
+/** 다가가면 간식을 건네는 이벤트 */
+function useOffer(id) {
+  const near = useStore((s) => s.near)
+  const offer = useStore((s) => s.offers[id])
+  const isNear = near.includes('npc:' + id)
+  const was = useRef(false)
+  useEffect(() => {
+    if (isNear && !was.current) offerSnack(id)
+    if (!isNear && was.current) clearOffer(id)
+    was.current = isNear
+  }, [isNear])
+  return offer
+}
+
+function NpcBubble({ id, name, text, offer, y }) {
+  if (text)
+    return (
+      <SpeechBubble y={y}>
+        <b>{name}</b>
+        <span>{text}</span>
+      </SpeechBubble>
+    )
+  if (offer?.phase === 'offer')
+    return (
+      <SpeechBubble y={y} wide>
+        <b>{name}</b>
+        <span>{offer.snack.line}</span>
+        <div className="choices">
+          <button onClick={() => acceptSnack(id)}>
+            고마워요! {offer.snack.emoji} {offer.snack.name} 받기
+          </button>
+        </div>
+      </SpeechBubble>
+    )
+  if (offer?.phase === 'given')
+    return (
+      <SpeechBubble y={y}>
+        <b>{name}</b>
+        <span>맛있게 먹어~ 💕</span>
+      </SpeechBubble>
+    )
+  return null
+}
+
 const clickProps = (fn) => ({
   onClick: (e) => {
     e.stopPropagation()
@@ -37,18 +83,15 @@ const clickProps = (fn) => ({
 /** 엄마: 묶음 머리 + 니트 + 앞치마, 부엌에서 찌개를 저어요 */
 export function Mom({ position, heading = Math.PI }) {
   const text = useBubble('mom')
+  const offer = useOffer('mom')
   return (
     <>
       <group position={position} rotation={[0, heading, 0]} {...clickProps(() => talkTo('mom'))}>
-        <Chibi look={LOOKS.mom} pose="cook" talking={!!text} seed={1.3} />
-        {text && (
-          <group rotation={[0, -heading, 0]}>
-            <SpeechBubble y={1.45}>
-              <b>엄마</b>
-              <span>{text}</span>
-            </SpeechBubble>
-          </group>
-        )}
+        <Chibi look={LOOKS.mom} pose="cook" talking={!!text || offer?.phase === 'offer'} seed={1.3} />
+        <group rotation={[0, -heading, 0]}>
+          <NpcBubble id="mom" name="엄마" text={text} offer={offer} y={1.45} />
+        </group>
+        <Hearts fxKey="snack-mom" y={1.3} />
       </group>
       <Solid x={position[0]} z={position[2]} r={0.3} />
     </>
@@ -58,17 +101,14 @@ export function Mom({ position, heading = Math.PI }) {
 /** 아빠: 둥근 안경 + 조끼, 소파에 앉아 TV 시청 (충돌은 소파가 담당) */
 export function Dad({ position, heading = Math.PI }) {
   const text = useBubble('dad')
+  const offer = useOffer('dad')
   return (
     <group position={position} rotation={[0, heading, 0]} {...clickProps(() => talkTo('dad'))}>
-      <Chibi look={LOOKS.dad} pose="sitChair" talking={!!text} seed={2.1} />
-      {text && (
-        <group rotation={[0, -heading, 0]}>
-          <SpeechBubble y={1.45}>
-            <b>아빠</b>
-            <span>{text}</span>
-          </SpeechBubble>
-        </group>
-      )}
+      <Chibi look={LOOKS.dad} pose="sitChair" talking={!!text || offer?.phase === 'offer'} seed={2.1} />
+      <group rotation={[0, -heading, 0]}>
+        <NpcBubble id="dad" name="아빠" text={text} offer={offer} y={1.45} />
+      </group>
+      <Hearts fxKey="snack-dad" y={1.3} />
     </group>
   )
 }

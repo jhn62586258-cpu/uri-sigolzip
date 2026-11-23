@@ -159,6 +159,25 @@ export function Chibi({ look, pose = 'stand', animRef, talking = false, seed = 0
         T.hx = 0.18
         T.hz = Math.sin(t * 1.7) * 0.07
         break
+      case 'tea': {
+        // 평상에 앉아 차 한 모금, 귤 한 입
+        T.by = -0.17
+        T.llx = T.lrx = -1.45 + Math.sin(t * 1.4) * 0.12
+        const sip = (Math.sin(t * 0.9) + 1) / 2
+        T.arx = -0.7 - sip * 1.35
+        T.arz = -0.25 + sip * 0.15
+        T.alx = -1.0 + Math.max(0, Math.sin(t * 0.9 + 2.4)) * -0.9
+        T.alz = 0.25 - Math.max(0, Math.sin(t * 0.9 + 2.4)) * 0.25
+        T.hx = -sip * 0.15
+        break
+      }
+      case 'hug':
+        T.alx = T.arx = -1.45 + Math.sin(t * 6) * 0.08
+        T.alz = -0.45
+        T.arz = 0.45
+        T.hx = 0.2
+        T.by = Math.abs(Math.sin(t * 8)) * 0.03
+        break
       case 'game':
         T.by = -0.17
         T.llx = T.lrx = -1.45
@@ -212,8 +231,9 @@ export function Chibi({ look, pose = 'stand', animRef, talking = false, seed = 0
   const shoes = look.shoes || '#ffffff'
   const longSleeve = look.sleeve === 'long'
 
-  const Arm = ({ side, refObj }) => (
+  const Arm = ({ side, refObj, prop }) => (
     <group ref={refObj} position={[side * 0.22, 0.47, 0]}>
+      {prop}
       <mesh position={[0, -0.02, 0]} castShadow>
         <sphereGeometry args={[0.085, 16, 12]} />
         <Mat c={top} map={topMap} />
@@ -296,8 +316,38 @@ export function Chibi({ look, pose = 'stand', animRef, talking = false, seed = 0
             </mesh>
           </group>
         )}
-        {Arm({ side: 1, refObj: armL })}
-        {Arm({ side: -1, refObj: armR })}
+        {Arm({
+          side: 1,
+          refObj: armL,
+          prop: holding === 'tea' && (
+            <group position={[-0.02, -0.29, 0.03]}>
+              <mesh castShadow>
+                <sphereGeometry args={[0.055, 14, 10]} />
+                <meshStandardMaterial color="#f08a24" roughness={0.5} />
+              </mesh>
+              <mesh position={[0, 0.05, 0]}>
+                <cylinderGeometry args={[0.012, 0.01, 0.01, 6]} />
+                <meshStandardMaterial color="#4f6b2c" />
+              </mesh>
+            </group>
+          ),
+        })}
+        {Arm({
+          side: -1,
+          refObj: armR,
+          prop: holding === 'tea' && (
+            <group position={[0.02, -0.3, 0.04]} rotation={[Math.PI / 2, 0, 0]}>
+              <mesh castShadow>
+                <cylinderGeometry args={[0.055, 0.04, 0.09, 16]} />
+                <meshStandardMaterial color="#f4efe4" roughness={0.4} />
+              </mesh>
+              <mesh position={[0, 0.046, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                <circleGeometry args={[0.05, 16]} />
+                <meshStandardMaterial color="#9a6a2a" roughness={0.2} />
+              </mesh>
+            </group>
+          ),
+        })}
         {Leg({ side: 1, refObj: legL })}
         {Leg({ side: -1, refObj: legR })}
         {holding === 'game' && (

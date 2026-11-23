@@ -3,9 +3,13 @@ import { useFrame } from '@react-three/fiber'
 import { Box, RBox, Cyl, Sph, Solid, RoomShell, Window, Door, Plant } from '../components/Prims'
 import { Persimmon } from '../components/Animals'
 import { Mom, Dad } from '../components/Family'
-import { Steam, FlickerLight, Screen } from '../components/Effects'
+import { Steam, FlickerLight, TvScreen } from '../components/Effects'
+import { Poodle } from '../components/Dogs'
 import { getTex } from '../lib/textures'
-import { playSpot } from '../lib/actions'
+import { playSpot, runAction } from '../lib/actions'
+import { useStore } from '../lib/store'
+import { useTheme } from '../lib/theme'
+import { DISHES } from './config'
 
 // =============================================================
 //  [거실과 부엌] — 10 × 7 m 의 아담한 공간, 천장 4.4 m
@@ -37,7 +41,7 @@ function Sofa() {
 }
 
 function TvSet() {
-  const map = useMemo(() => getTex('landscape2'), [])
+  const tv = useStore((s) => s.tv)
   return (
     <group position={[-2.0, 0, -3.15]}>
       <Box p={[0, 0.28, 0]} s={[2.0, 0.56, 0.5]} c="#7a5236" map={getTex('woodDark', 1, 0.5)} />
@@ -46,7 +50,9 @@ function TvSet() {
       ))}
       <Box p={[0, 0.6, 0.0]} s={[0.35, 0.05, 0.22]} c="#222" />
       <Box p={[0, 1.02, -0.02]} s={[1.3, 0.78, 0.07]} c="#1d1b1a" rough={0.4} />
-      <Screen p={[0, 1.02, 0.017]} w={1.2} h={0.68} map={map} />
+      <group onClick={(e) => (e.stopPropagation(), e.delta < 8 && runAction('channel'))}>
+        <TvScreen p={[0, 1.02, 0.017]} w={1.2} h={0.68} channel={tv} />
+      </group>
       {/* 라디오, 화분, 액자 */}
       <RBox p={[0.75, 0.68, 0.05]} s={[0.36, 0.22, 0.14]} c="#c96b4a" rad={0.03} />
       <Sph p={[0.69, 0.68, 0.125]} rad={0.05} c="#3a2e27" />
@@ -126,7 +132,7 @@ function Kitchen() {
       <Box p={[3.1, 0.92, -3.15]} s={[0.6, 0.04, 0.45]} c="#2a2a2a" rough={0.5} />
       <Cyl p={[3.1, 1.02, -3.1]} args={[0.2, 0.15, 0.17, 18]} c="#4a2a20" rough={0.6} />
       <Cyl p={[3.1, 1.1, -3.1]} args={[0.18, 0.18, 0.01, 18]} c="#b8432a" emissive="#7a1d0a" ei={0.3} />
-      <Steam p={[3.1, 1.12, -3.1]} n={6} />
+      <CookingPot />
       <pointLight position={[3.1, 0.98, -3.1]} color="#ff6a2a" intensity={0.5} distance={1.2} />
       {/* 레인지 후드 */}
       <Box p={[3.1, 2.15, -3.25]} s={[0.8, 0.25, 0.5]} c="#d8d4cc" metal={0.3} rough={0.4} />
@@ -165,6 +171,60 @@ function Kitchen() {
   )
 }
 
+function CookingPot() {
+  const cooking = useStore((s) => s.cooking)
+  const glow = useRef()
+  useFrame((st) => {
+    if (glow.current) glow.current.intensity = cooking ? 1.6 + Math.sin(st.clock.elapsedTime * 9) * 0.3 : 0.5
+  })
+  return (
+    <group onClick={(e) => (e.stopPropagation(), e.delta < 8 && runAction('cook:kimchi'))}>
+      <Steam p={[3.1, 1.12, -3.1]} n={cooking ? 14 : 6} scale={cooking ? 1.5 : 1} />
+      <pointLight ref={glow} position={[3.1, 0.96, -2.95]} color="#ff6a2a" intensity={0.5} distance={1.6} />
+    </group>
+  )
+}
+
+function ServedDish() {
+  const served = useStore((s) => s.served)
+  if (!served) return null
+  const d = DISHES[served]
+  return (
+    <group position={[2.62, 0.77, 0.92]}>
+      <Cyl p={[0, 0.0, 0]} args={[0.26, 0.26, 0.02, 20]} c="#7a5236" />
+      {served === 'ramen' ? (
+        <>
+          <Cyl p={[0, 0.08, 0]} args={[0.2, 0.18, 0.14, 20]} c="#e8c25a" metal={0.4} rough={0.4} />
+          <Cyl p={[0, 0.15, 0]} args={[0.185, 0.185, 0.01, 20]} c={d.color} />
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <mesh key={i} position={[Math.cos(i) * 0.08, 0.16, Math.sin(i * 1.3) * 0.08]} rotation={[Math.PI / 2, 0, i]}>
+              <torusGeometry args={[0.04, 0.008, 6, 12]} />
+              <meshStandardMaterial color="#f3d98a" />
+            </mesh>
+          ))}
+          <Sph p={[0.05, 0.16, 0.03]} rad={0.04} sc={[1, 0.4, 1]} c="#ffffff" />
+          <Sph p={[0.05, 0.168, 0.03]} rad={0.018} sc={[1, 0.4, 1]} c="#f2b632" />
+        </>
+      ) : (
+        <>
+          <Cyl p={[0, 0.08, 0]} args={[0.2, 0.15, 0.15, 20]} c="#3a2a22" rough={0.6} />
+          <Cyl p={[0, 0.155, 0]} args={[0.185, 0.185, 0.01, 20]} c={d.color} />
+          {[0, 1, 2, 3].map((i) => (
+            <Box key={i} p={[Math.cos(i * 1.6) * 0.08, 0.165, Math.sin(i * 1.6) * 0.08]} s={[0.05, 0.02, 0.05]} c={i % 2 ? '#f5f0e0' : '#c93a2a'} />
+          ))}
+        </>
+      )}
+      <Steam p={[0, 0.18, 0]} n={6} scale={0.9} />
+      {[0.3, 0.6].map((x) => (
+        <group key={x} position={[x, 0, 0.25]}>
+          <Cyl p={[0, 0.04, 0]} args={[0.07, 0.05, 0.07, 14]} c="#f4f1ea" />
+          <Box p={[0.1, 0.0, 0]} s={[0.012, 0.01, 0.22]} c="#c9a54a" metal={0.6} />
+        </group>
+      ))}
+    </group>
+  )
+}
+
 function DiningTable() {
   const wood = getTex('woodLight', 1, 1)
   return (
@@ -174,10 +234,12 @@ function DiningTable() {
         {[[-0.62, -0.36], [0.62, -0.36], [-0.62, 0.36], [0.62, 0.36]].map(([x, z]) => (
           <Box key={x + '' + z} p={[x, 0.36, z]} s={[0.07, 0.72, 0.07]} c="#6e472d" />
         ))}
+        <group position={[0.36, 0, -0.1]}>
         <Cyl p={[0, 0.83, 0]} args={[0.22, 0.14, 0.12, 18]} c="#e9e2d4" />
         {[[0, 0.92, 0], [0.09, 0.9, 0.06], [-0.08, 0.9, 0.05], [0.04, 0.9, -0.09], [-0.06, 0.95, -0.03]].map((p, i) => (
           <Persimmon key={i} p={p} s={1.3} />
         ))}
+        </group>
         <Cyl p={[-0.45, 0.8, 0.2]} args={[0.05, 0.04, 0.07, 12]} c="#f4f1ea" />
         <Cyl p={[0.45, 0.8, -0.2]} args={[0.05, 0.04, 0.07, 12]} c="#f4f1ea" />
       </group>
@@ -242,15 +304,17 @@ function WallClock() {
 export default function LivingScene() {
   const straw = useMemo(() => getTex('straw', 2, 1.5), [])
   const rugMap = useMemo(() => getTex('plaidBrown', 2, 1.4), [])
+  const th = useTheme()
+  const I = th.indoor
   return (
     <group>
-      <color attach="background" args={['#241a14']} />
-      <ambientLight intensity={0.35} color="#ffe6c8" />
-      <hemisphereLight args={['#fff1dc', '#7a5a40', 0.55]} />
+      <color attach="background" args={[I.bg]} />
+      <ambientLight intensity={I.amb} color="#ffe6c8" />
+      <hemisphereLight args={I.hemi} />
       <directionalLight
         position={[-3, 7, 5]}
-        intensity={1.15}
-        color="#ffe0b0"
+        intensity={I.sunI}
+        color={I.sun}
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-7}
@@ -263,17 +327,17 @@ export default function LivingScene() {
       <FlickerLight p={[0.6, 0.55, -2.55]} intensity={2.2} distance={4.5} />
       {/* 형광등 */}
       <Box p={[-2.0, H - 0.32, -0.6]} s={[1.4, 0.06, 0.16]} c="#fffaf0" emissive="#fff6e0" ei={2} cast={false} />
-      <pointLight position={[-2.0, H - 0.6, -0.6]} color="#fff1d8" intensity={2.4} distance={8} decay={1.3} />
+      <pointLight position={[-2.0, H - 0.6, -0.6]} color="#fff1d8" intensity={2.4 * I.lamp} distance={8} decay={1.3} />
 
-      <RoomShell w={W} d={D} h={H} floorTex="wood" />
+      <RoomShell w={W} d={D} h={H} floorTex="wood" accent="back" />
 
       {/* 창문들 */}
-      <Window p={[-2.0, 2.35, -3.48]} w={1.8} h={1.3} view="landscape" />
-      <Window p={[4.97, 2.0, -1.2]} w={1.1} h={1.0} rotY={-Math.PI / 2} view="landscape" curtains={false} />
+      <Window p={[-2.0, 2.35, -3.48]} w={1.8} h={1.3} />
+      <Window p={[4.97, 2.0, -1.2]} w={1.1} h={1.0} rotY={-Math.PI / 2} curtains={false} />
 
       {/* 문: 마당(왼쪽 벽), 내 방(오른쪽 벽, 노란 문틀) */}
-      <Door p={[-4.97, 0, 2.3]} rotY={Math.PI / 2} to="yard" label="🌳 마당으로" color="#a8b9c0" frame="#5a3d2a" w={1.2} glass />
-      <Door p={[4.97, 0, 2.5]} rotY={-Math.PI / 2} to="room" label="🚪 내 방으로" color="#f2cf4a" frame="#d6a82a" w={0.95} />
+      <Door p={[-4.92, 0, 2.3]} rotY={Math.PI / 2} to="yard" label="🌳 마당으로" color="#a8b9c0" frame="#5a3d2a" w={1.2} glass />
+      <Door p={[4.92, 0, 2.5]} rotY={-Math.PI / 2} to="room" label="🚪 내 방으로" color="#f2cf4a" frame="#d6a82a" w={0.95} />
 
       {/* 돗자리 + 러그 */}
       <mesh position={[-2.0, 0.006, -1.0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
@@ -319,7 +383,7 @@ export default function LivingScene() {
       <WallClock />
 
       {/* 큰 화분들 */}
-      <Plant p={[-4.45, 0, -3.0]} s={1.8} />
+      <Plant p={[-4.45, 0, -3.0]} s={1.9} variant="tall" leaf="#5f7f38" />
       <Solid x={-4.45} z={-3.0} r={0.38} />
       <Plant p={[-0.6, 0, -3.1]} s={1.1} flowers="#f2a6c0" />
       <Solid x={-0.6} z={-3.1} r={0.26} />
@@ -340,6 +404,10 @@ export default function LivingScene() {
       <RBox p={[3.1, 0.12, -2.52]} s={[0.62, 0.24, 0.5]} c="#a57650" rad={0.03} />
       <Mom position={[3.1, 0.24, -2.55]} heading={Math.PI} />
       <DiningTable />
+      <ServedDish />
+      {/* 갈색 푸들 몽글이 */}
+      <Poodle position={[-3.4, 0.012, -0.55]} rotation={0.8} />
+      <Solid x={-3.4} z={-0.55} r={0.3} />
     </group>
   )
 }

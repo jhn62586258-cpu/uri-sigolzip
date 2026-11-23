@@ -108,7 +108,7 @@ export default function CameraRig() {
       camera.updateProjectionMatrix()
     }
     cam.dist = THREE.MathUtils.damp(cam.dist, cam.targetDist, 9, dt)
-    const fy = pose === 'prone' ? 0.42 : pose === 'sit' ? 0.55 : cam.focusY
+    const fy = (pose === 'prone' ? 0.42 : pose === 'sit' ? 0.55 : cam.focusY) + player.pos.y
     const tx = player.pos.x
     const tz = player.pos.z
     look.current.x = THREE.MathUtils.damp(look.current.x, tx, 8, dt)

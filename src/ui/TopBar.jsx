@@ -1,13 +1,17 @@
 import React, { useState } from 'react'
 import { useStore, setState } from '../lib/store'
 import { SCENES, SCENE_ORDER } from '../scenes/config'
-import { goTo } from '../lib/actions'
+import { goTo, setTime } from '../lib/actions'
+import { THEMES, TIME_ORDER } from '../lib/theme'
 import { audio } from '../audio/AudioEngine'
 
 export default function TopBar() {
   const scene = useStore((s) => s.scene)
   const muted = useStore((s) => s.muted)
   const volume = useStore((s) => s.volume)
+  const time = useStore((s) => s.time)
+  const snacks = useStore((s) => s.snacks)
+  const snackList = Object.entries(snacks)
   const [open, setOpen] = useState(false)
 
   const toggleMute = () => {
@@ -50,6 +54,16 @@ export default function TopBar() {
             </div>
           )}
         </div>
+        {snackList.length > 0 && (
+          <div className="pill snacks" title="받은 간식">
+            {snackList.map(([e, n]) => (
+              <span key={e}>
+                {e}
+                <small>{n}</small>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="topbar right">
@@ -58,6 +72,13 @@ export default function TopBar() {
             {muted || volume === 0 ? '🔇' : volume < 0.4 ? '🔈' : '🔊'}
           </button>
           <input type="range" min="0" max="1" step="0.01" value={muted ? 0 : volume} onChange={onVol} aria-label="음량" />
+        </div>
+        <div className="timebar">
+          {TIME_ORDER.map((k) => (
+            <button key={k} className={'pill time' + (time === k ? ' on' : '')} onClick={() => setTime(k)}>
+              {THEMES[k].label}
+            </button>
+          ))}
         </div>
       </div>
     </>

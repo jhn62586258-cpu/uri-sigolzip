@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { audio } from '../audio/AudioEngine'
 import { setState, getState } from '../lib/store'
-import { SCENES } from '../scenes/config'
+import { ambienceKey } from '../lib/actions'
 
 export default function StartScreen() {
   const [leaving, setLeaving] = useState(false)
@@ -13,7 +13,8 @@ export default function StartScreen() {
     audio.unlock()
     audio.setMuted(!withSound)
     audio.setVolume(s.volume)
-    audio.setAmbience(SCENES[s.scene].ambience)
+    audio.setAmbience(ambienceKey(s))
+    audio.setTvChannel(s.tv)
     if (withSound) audio.play('click')
     setLeaving(true)
     setTimeout(() => setState({ started: true, muted: !withSound }), 450)

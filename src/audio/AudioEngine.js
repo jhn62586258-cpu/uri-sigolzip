@@ -228,7 +228,15 @@ class AudioEngine {
       setTimeout(() => old.stop(), 1400)
     }
     this.currentName = name
-    const factory = { rain: rainAmbience, home: homeAmbience, musicbox: musicBoxAmbience }[name]
+    const factory = {
+      rain: rainAmbience,
+      evening: eveningAmbience,
+      night: nightAmbience,
+      home: homeAmbience,
+      musicbox: musicBoxAmbience,
+      piano: pianoAmbience,
+      lofi: lofiAmbience,
+    }[name]
     if (!factory) {
       this.current = null
       return
@@ -237,7 +245,19 @@ class AudioEngine {
     amb.out.gain.setValueAtTime(0, now)
     amb.out.gain.linearRampToValueAtTime(1, now + 1.5)
     amb.out.connect(this.ambBus)
+    if (amb.setChannel) amb.setChannel(this.tvChannel)
     this.current = amb
+  }
+
+  // ---------- TV 채널 (거실 배경음 안의 TV 소리) ----------
+  tvChannel = 0
+  setTvChannel(i) {
+    this.tvChannel = i
+    if (this.current && this.current.setChannel) this.current.setChannel(i)
+  }
+
+  setStewBoost(v) {
+    if (this.current && this.current.setStewBoost) this.current.setStewBoost(v)
   }
 
   // ---------- 효과음 ----------
@@ -348,9 +368,14 @@ function homeAmbience(E) {
   }
   bubble()
 
-  // --- TV: 멀리서 들리는 웅얼웅얼 말소리 + 잔잔한 배경음악 ---
-  const tvOut = E.gain(0.55)
+  // --- TV: 채널별 소리 (0 시골 다큐 / 1 모닥불 / 2 비 오는 숲 / 3 만화) ---
+  const tvOut = E.gain(0.6)
   tvOut.connect(out)
+  const ch = [E.gain(0), E.gain(0), E.gain(0), E.gain(0)]
+  ch.forEach((g) => g.connect(tvOut))
+  let active = 0
+
+  // 채널 0: 웅얼웅얼 말소리 + 잔잔한 배경 음악
   const voice = ctx.createOscillator()
   voice.type = 'sawtooth'
   voice.frequency.value = 160
@@ -362,63 +387,110 @@ function homeAmbience(E) {
   voice.connect(f2)
   f1.connect(vg)
   f2.connect(vg)
-  vg.connect(vlp).connect(tvOut)
+  vg.connect(vlp).connect(ch[0])
   voice.start()
   nodes.push(voice)
-
   let t = ctx.currentTime + 0.4
   let syl = 0
   let speaker = 120
-  const tvSched = setInterval(() => {
-    while (t < ctx.currentTime + 0.7) {
-      if (syl <= 0) {
-        // 문장 사이 쉼
-        const pause = rand(0.35, 1.4)
-        vg.gain.setValueAtTime(0, t)
-        t += pause
-        syl = Math.floor(rand(4, 14))
-        speaker = Math.random() < 0.5 ? rand(105, 135) : rand(195, 235)
-        if (Math.random() < 0.08) {
-          // 방청객 웃음 같은 소리
-          for (let i = 0; i < 6; i++) E.burst(tvOut, t + i * 0.09, { dur: 0.08, freq: rand(900, 1600), Q: 2, peak: 0.05 })
-          t += 0.6
+  timers.push(
+    setInterval(() => {
+      while (t < ctx.currentTime + 0.7) {
+        if (syl <= 0) {
+          vg.gain.setValueAtTime(0, t)
+          t += rand(0.35, 1.4)
+          syl = Math.floor(rand(4, 14))
+          speaker = Math.random() < 0.5 ? rand(105, 135) : rand(195, 235)
+          continue
         }
-        continue
+        const dur = rand(0.08, 0.2)
+        voice.frequency.setValueAtTime(speaker * rand(0.9, 1.25), t)
+        voice.frequency.linearRampToValueAtTime(speaker * rand(0.8, 1.15), t + dur)
+        f1.frequency.setValueAtTime(rand(380, 850), t)
+        f2.frequency.setValueAtTime(rand(1000, 2300), t)
+        vg.gain.setValueAtTime(0, t)
+        vg.gain.linearRampToValueAtTime(rand(0.25, 0.45), t + 0.025)
+        vg.gain.linearRampToValueAtTime(0.0, t + dur)
+        t += dur + rand(0.01, 0.05)
+        syl--
       }
-      const dur = rand(0.08, 0.2)
-      voice.frequency.setValueAtTime(speaker * rand(0.9, 1.25), t)
-      voice.frequency.linearRampToValueAtTime(speaker * rand(0.8, 1.15), t + dur)
-      f1.frequency.setValueAtTime(rand(380, 850), t)
-      f2.frequency.setValueAtTime(rand(1000, 2300), t)
-      vg.gain.setValueAtTime(0, t)
-      vg.gain.linearRampToValueAtTime(rand(0.25, 0.45), t + 0.025)
-      vg.gain.linearRampToValueAtTime(0.0, t + dur)
-      t += dur + rand(0.01, 0.05)
-      syl--
-    }
-  }, 120)
-  timers.push(tvSched)
-
-  // TV 속 잔잔한 배경 음악 (아주 작게)
+    }, 120)
+  )
   const tvMusic = E.gain(0.05)
-  const tvMusicLp = E.filter('lowpass', 1200)
-  tvMusic.connect(tvMusicLp).connect(tvOut)
-  const chords = [
-    [60, 64, 67],
-    [57, 60, 64],
-    [62, 65, 69],
-    [55, 59, 62],
-  ]
+  tvMusic.connect(E.filter('lowpass', 1200)).connect(ch[0])
+  const chords = [[60, 64, 67], [57, 60, 64], [62, 65, 69], [55, 59, 62]]
   let ci = 0
   let mt = ctx.currentTime + 0.5
-  const musicSched = setInterval(() => {
-    while (mt < ctx.currentTime + 1) {
-      chords[ci % 4].forEach((m) => E.tone(tvMusic, mt, { freq: mtof(m), dur: 2.2, type: 'triangle', peak: 0.5, attack: 0.2 }))
-      ci++
-      mt += 2.2
+  timers.push(
+    setInterval(() => {
+      while (mt < ctx.currentTime + 1) {
+        chords[ci % 4].forEach((m) => E.tone(tvMusic, mt, { freq: mtof(m), dur: 2.2, type: 'triangle', peak: 0.5, attack: 0.2 }))
+        ci++
+        mt += 2.2
+      }
+    }, 300)
+  )
+
+  // 채널 1: 모닥불 (낮은 불꽃 소리 + 타닥타닥)
+  const roar = E.loopNoise('brown')
+  roar.connect(E.filter('lowpass', 450)).connect(E.gain(0.5)).connect(ch[1])
+  nodes.push(roar)
+  let fireT
+  const fire = () => {
+    if (active === 1) {
+      const tt = ctx.currentTime + 0.02
+      const n = Math.random() < 0.3 ? 3 : 1
+      for (let i = 0; i < n; i++) E.burst(ch[1], tt + i * rand(0.01, 0.04), { dur: rand(0.005, 0.03), freq: rand(1500, 6000), type: 'highpass', peak: rand(0.15, 0.5) })
     }
-  }, 300)
-  timers.push(musicSched)
+    fireT = setTimeout(fire, rand(40, 260))
+  }
+  fire()
+
+  // 채널 2: 비 오는 숲 (빗소리 + 새소리)
+  const forest = E.loopNoise('pink')
+  forest.connect(E.filter('highpass', 500)).connect(E.filter('lowpass', 4200)).connect(E.gain(0.6)).connect(ch[2])
+  nodes.push(forest)
+  let birdT
+  const bird = () => {
+    if (active === 2) {
+      const tt = ctx.currentTime + 0.05
+      const f = rand(2400, 3600)
+      const k = Math.floor(rand(2, 5))
+      for (let i = 0; i < k; i++) E.tone(ch[2], tt + i * 0.13, { freq: f, to: f * rand(1.2, 1.5), dur: 0.09, peak: 0.12, glide: 0.06 })
+    }
+    birdT = setTimeout(bird, rand(1200, 3500))
+  }
+  bird()
+
+  // 채널 3: 만화 (통통 튀는 멜로디 + 뿅 소리)
+  const toon = E.gain(0.5)
+  toon.connect(E.filter('lowpass', 2600)).connect(ch[3])
+  const TUNE = [72, 76, 79, 76, 74, 77, 81, 77, 76, 79, 84, 79, 77, 74, 72, 0]
+  let ti = 0
+  let tt3 = ctx.currentTime + 0.3
+  timers.push(
+    setInterval(() => {
+      while (tt3 < ctx.currentTime + 0.6) {
+        const m = TUNE[ti % TUNE.length]
+        if (m && active === 3) {
+          E.tone(toon, tt3, { freq: mtof(m), dur: 0.14, type: 'square', peak: 0.08 })
+          if (ti % 4 === 0) E.tone(toon, tt3, { freq: mtof(m - 24), dur: 0.2, type: 'triangle', peak: 0.15 })
+          if (ti % 16 === 7) E.tone(toon, tt3 + 0.1, { freq: 220, to: 880, dur: 0.25, peak: 0.12, glide: 0.2 })
+        }
+        ti++
+        tt3 += 0.19
+      }
+    }, 100)
+  )
+
+  const setChannel = (i) => {
+    active = i
+    const now = ctx.currentTime
+    ch.forEach((g, k) => {
+      g.gain.cancelScheduledValues(now)
+      g.gain.setTargetAtTime(k === i ? 1 : 0, now, 0.08)
+    })
+  }
 
   // --- 난로 장작 타닥 ---
   let crackleTimer
@@ -428,12 +500,18 @@ function homeAmbience(E) {
   }
   crackle()
 
+  const setStewBoost = (v) => stewBus.gain.setTargetAtTime(0.9 + v * 2.2, ctx.currentTime, 0.4)
+
   return {
     out,
+    setChannel,
+    setStewBoost,
     stop() {
       timers.forEach(clearInterval)
       clearTimeout(bubbleTimer)
       clearTimeout(crackleTimer)
+      clearTimeout(fireT)
+      clearTimeout(birdT)
       nodes.forEach((n) => {
         try {
           n.stop()
@@ -699,6 +777,314 @@ const SFX = {
     E.burst(E.sfxBus, t, { dur: 0.12, freq: 400, Q: 0.8, peak: 0.12, kind: 'pink' })
   },
 }
+
+
+// =============================================================
+//  마당 · 노을 저녁: 산들바람 + 멀리 새소리 + 풍경 소리
+// =============================================================
+function eveningAmbience(E) {
+  const ctx = E.ctx
+  const out = E.gain(0)
+  const wind = E.loopNoise('pink')
+  const bp = E.filter('bandpass', 500, 0.6)
+  const wg = E.gain(0.35)
+  wind.connect(bp).connect(wg).connect(out)
+  const lfo = ctx.createOscillator()
+  lfo.frequency.value = 0.09
+  const lg = E.gain(250)
+  lfo.connect(lg).connect(bp.frequency)
+  lfo.start()
+  let birdT, chimeT
+  const bird = () => {
+    const t = ctx.currentTime + 0.05
+    const f = rand(1800, 2800)
+    const n = Math.floor(rand(2, 5))
+    for (let i = 0; i < n; i++) E.tone(out, t + i * rand(0.12, 0.22), { freq: f, to: f * rand(0.7, 1.4), dur: 0.12, peak: 0.05, glide: 0.1 })
+    birdT = setTimeout(bird, rand(2000, 5000))
+  }
+  const chime = () => {
+    const t = ctx.currentTime + 0.05
+    const send = E.gain(0.7)
+    send.connect(E.reverbIn)
+    ;[84, 88, 91, 86].forEach((m, i) => {
+      if (Math.random() < 0.6) {
+        E.tone(out, t + i * rand(0.15, 0.4), { freq: mtof(m), dur: 2.2, peak: 0.03 })
+        E.tone(send, t + i * rand(0.15, 0.4), { freq: mtof(m), dur: 2.2, peak: 0.03 })
+      }
+    })
+    chimeT = setTimeout(chime, rand(5000, 11000))
+  }
+  bird()
+  chime()
+  return {
+    out,
+    stop() {
+      clearTimeout(birdT)
+      clearTimeout(chimeT)
+      try {
+        wind.stop()
+        lfo.stop()
+      } catch (e) {}
+      out.disconnect()
+    },
+  }
+}
+
+// =============================================================
+//  마당 · 별빛 밤: 귀뚜라미 + 개구리 + 잔잔한 밤바람
+// =============================================================
+function nightAmbience(E) {
+  const ctx = E.ctx
+  const out = E.gain(0)
+  const air = E.loopNoise('brown')
+  air.connect(E.filter('lowpass', 300)).connect(E.gain(0.15)).connect(out)
+  const timers = []
+  // 귀뚜라미: 4~5kHz 짧은 펄스 묶음
+  ;[0, 1, 2].forEach((k) => {
+    let t = ctx.currentTime + 0.3 + k * 0.4
+    const f = 4200 + k * 380
+    timers.push(
+      setInterval(() => {
+        while (t < ctx.currentTime + 0.6) {
+          const n = 3 + Math.floor(Math.random() * 2)
+          for (let i = 0; i < n; i++) E.tone(out, t + i * 0.045, { freq: f, dur: 0.03, peak: 0.025 + k * 0.006, attack: 0.004 })
+          t += rand(0.45, 0.9)
+        }
+      }, 150)
+    )
+  })
+  // 개구리
+  let frogT
+  const frog = () => {
+    const t = ctx.currentTime + 0.05
+    const n = Math.floor(rand(2, 4))
+    for (let i = 0; i < n; i++) {
+      const o = ctx.createOscillator()
+      o.type = 'sawtooth'
+      o.frequency.setValueAtTime(rand(150, 210), t + i * 0.25)
+      const g = ctx.createGain()
+      g.gain.setValueAtTime(0, t + i * 0.25)
+      g.gain.linearRampToValueAtTime(0.05, t + i * 0.25 + 0.02)
+      g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.25 + 0.16)
+      const f = E.filter('bandpass', 700, 3)
+      o.connect(f).connect(g).connect(out)
+      o.start(t + i * 0.25)
+      o.stop(t + i * 0.25 + 0.2)
+    }
+    frogT = setTimeout(frog, rand(1500, 4500))
+  }
+  frog()
+  return {
+    out,
+    stop() {
+      timers.forEach(clearInterval)
+      clearTimeout(frogT)
+      try {
+        air.stop()
+      } catch (e) {}
+      out.disconnect()
+    },
+  }
+}
+
+// =============================================================
+//  내 방 LP 2) 새벽 피아노
+// =============================================================
+function pianoAmbience(E) {
+  const ctx = E.ctx
+  const out = E.gain(0)
+  const dry = E.gain(0.9)
+  dry.connect(out)
+  const toRev = E.gain(1.2)
+  out.connect(toRev)
+  toRev.connect(E.reverbIn)
+  const note = (m, t, vel = 1, len = 3.2) => {
+    const f = mtof(m)
+    const lp = E.filter('lowpass', 2400)
+    lp.connect(dry)
+    ;[[1, 0.16], [2, 0.06], [3, 0.025], [4, 0.012]].forEach(([r, g]) =>
+      E.tone(lp, t, { freq: f * r * (1 + (r - 1) * 0.0008), dur: len / r, peak: g * vel, attack: 0.006 })
+    )
+  }
+  // Fmaj7 - Em7 - Dm7 - Cmaj7
+  const PROG = [
+    [41, 57, 60, 64, 69],
+    [40, 55, 59, 62, 67],
+    [38, 53, 57, 60, 65],
+    [36, 52, 55, 59, 64],
+  ]
+  const MEL = [[76, 72], [74, 71], [72, 69], [71, 67, 72]]
+  const beat = 0.75
+  let bar = 0
+  let t = ctx.currentTime + 0.4
+  const sched = setInterval(() => {
+    while (t < ctx.currentTime + 1.2) {
+      const c = PROG[bar % 4]
+      note(c[0], t, 0.9, 4)
+      const arp = [1, 2, 3, 4, 3, 2]
+      arp.forEach((k, i) => note(c[k], t + i * (beat / 1.5), 0.5 + Math.random() * 0.15, 2.6))
+      const mel = MEL[bar % 4]
+      mel.forEach((m, i) => note(m, t + beat * (0.5 + i * 1.3), 0.75, 3))
+      t += beat * 4
+      bar++
+    }
+  }, 200)
+  return {
+    out,
+    stop() {
+      clearInterval(sched)
+      out.disconnect()
+      toRev.disconnect()
+    },
+  }
+}
+
+// =============================================================
+//  내 방 LP 3) 로파이 빗소리
+// =============================================================
+function lofiAmbience(E) {
+  const ctx = E.ctx
+  const out = E.gain(0)
+  const rain = E.loopNoise('pink')
+  rain.connect(E.filter('highpass', 400)).connect(E.filter('lowpass', 3000)).connect(E.gain(0.28)).connect(out)
+  const hiss = E.loopNoise('white')
+  hiss.connect(E.filter('highpass', 5000)).connect(E.gain(0.012)).connect(out)
+  let crackT
+  const crackle = () => {
+    E.burst(out, ctx.currentTime + 0.01, { dur: 0.006, freq: rand(2000, 6000), type: 'highpass', peak: rand(0.02, 0.07) })
+    crackT = setTimeout(crackle, rand(30, 280))
+  }
+  crackle()
+  const keys = E.filter('lowpass', 1400)
+  const kg = E.gain(0.9)
+  keys.connect(kg).connect(out)
+  const trem = ctx.createOscillator()
+  trem.frequency.value = 4.5
+  const tg = E.gain(0.15)
+  trem.connect(tg).connect(kg.gain)
+  trem.start()
+  const chord = (notes, t, len) =>
+    notes.forEach((m) => {
+      E.tone(keys, t, { freq: mtof(m), dur: len, peak: 0.05, attack: 0.02 })
+      E.tone(keys, t, { freq: mtof(m) * 2, dur: len * 0.5, peak: 0.012, attack: 0.01 })
+    })
+  const drums = E.gain(0.8)
+  drums.connect(E.filter('lowpass', 5000)).connect(out)
+  const kick = (t) => E.tone(drums, t, { freq: 110, to: 45, dur: 0.3, peak: 0.45, glide: 0.12 })
+  const snare = (t) => E.burst(drums, t, { dur: 0.18, freq: 1800, Q: 0.7, peak: 0.13, kind: 'pink' })
+  const hat = (t, v) => E.burst(drums, t, { dur: 0.04, freq: 8000, type: 'highpass', peak: v })
+  // Dm9 - G13 - Cmaj9 - Am9
+  const PROG = [
+    [50, 57, 60, 64, 65],
+    [43, 53, 57, 59, 64],
+    [48, 55, 59, 62, 64],
+    [45, 55, 60, 64, 67],
+  ]
+  const beat = 60 / 74
+  let bar = 0
+  let t = ctx.currentTime + 0.4
+  const sched = setInterval(() => {
+    while (t < ctx.currentTime + 1.2) {
+      chord(PROG[bar % 4], t, beat * 3.8)
+      for (let b = 0; b < 4; b++) {
+        const bt = t + b * beat
+        if (b === 0 || (b === 2 && bar % 2)) kick(bt)
+        if (b === 2 && !(bar % 2)) kick(bt + beat * 0.5)
+        if (b === 1 || b === 3) snare(bt)
+        hat(bt, 0.05)
+        hat(bt + beat * 0.58, 0.03)
+      }
+      t += beat * 4
+      bar++
+    }
+  }, 200)
+  return {
+    out,
+    stop() {
+      clearInterval(sched)
+      clearTimeout(crackT)
+      try {
+        rain.stop()
+        hiss.stop()
+        trem.stop()
+      } catch (e) {}
+      out.disconnect()
+    },
+  }
+}
+
+const SFX_EXTRA = {
+  // 🐶 쓰다듬기: 낑낑 좋아하는 소리
+  pet(E, t) {
+    for (let i = 0; i < 2; i++) {
+      const tt = t + i * 0.35
+      const ctx = E.ctx
+      const o = ctx.createOscillator()
+      o.type = 'triangle'
+      o.frequency.setValueAtTime(700, tt)
+      o.frequency.linearRampToValueAtTime(1150, tt + 0.12)
+      o.frequency.linearRampToValueAtTime(820, tt + 0.28)
+      const g = ctx.createGain()
+      g.gain.setValueAtTime(0, tt)
+      g.gain.linearRampToValueAtTime(0.12, tt + 0.03)
+      g.gain.linearRampToValueAtTime(0, tt + 0.3)
+      o.connect(E.filter('lowpass', 2500)).connect(g).connect(E.sfxBus)
+      o.start(tt)
+      o.stop(tt + 0.35)
+    }
+  },
+  // 🐩 안아주기: 깡! 하는 작은 짖음 + 반짝 아르페지오
+  hug(E, t) {
+    E.tone(E.sfxBus, t, { freq: 900, to: 600, dur: 0.12, type: 'sawtooth', peak: 0.08, glide: 0.1 })
+    E.tone(E.sfxBus, t + 0.2, { freq: 1000, to: 650, dur: 0.12, type: 'sawtooth', peak: 0.07, glide: 0.1 })
+    ;[76, 79, 84, 88].forEach((m, i) => E.tone(E.sfxBus, t + 0.35 + i * 0.08, { freq: mtof(m), dur: 0.5, peak: 0.07 }))
+  },
+  harvest(E, t) {
+    for (let i = 0; i < 5; i++) E.burst(E.sfxBus, t + i * 0.04, { dur: 0.08, freq: rand(2500, 5000), Q: 0.8, peak: 0.08, kind: 'pink' })
+    E.tone(E.sfxBus, t + 0.25, { freq: 420, to: 900, dur: 0.12, peak: 0.15, glide: 0.08 })
+  },
+  letter(E, t) {
+    for (let i = 0; i < 4; i++) E.burst(E.sfxBus, t + i * 0.09, { dur: 0.12, freq: rand(1500, 3500), Q: 0.6, peak: 0.08, kind: 'pink' })
+    ;[79, 83, 86].forEach((m, i) => E.tone(E.sfxBus, t + 0.4 + i * 0.12, { freq: mtof(m), dur: 0.8, peak: 0.06 }))
+  },
+  chime(E, t) {
+    const send = E.gain(0.8)
+    send.connect(E.reverbIn)
+    ;[72, 76, 79, 84].forEach((m, i) => {
+      E.tone(E.sfxBus, t + i * 0.12, { freq: mtof(m), dur: 1.2, peak: 0.09 })
+      E.tone(send, t + i * 0.12, { freq: mtof(m), dur: 1.2, peak: 0.05 })
+    })
+  },
+  needle(E, t) {
+    E.burst(E.sfxBus, t, { dur: 0.05, freq: 900, Q: 1, peak: 0.25 })
+    for (let i = 0; i < 14; i++) E.burst(E.sfxBus, t + 0.1 + i * rand(0.04, 0.1), { dur: 0.008, freq: rand(2000, 6000), type: 'highpass', peak: 0.1 })
+  },
+  sip(E, t) {
+    const ctx = E.ctx
+    const s = ctx.createBufferSource()
+    s.buffer = E.pink
+    const f = E.filter('bandpass', 800, 4)
+    f.frequency.setValueAtTime(600, t)
+    f.frequency.linearRampToValueAtTime(1600, t + 0.35)
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0, t)
+    g.gain.linearRampToValueAtTime(0.25, t + 0.08)
+    g.gain.linearRampToValueAtTime(0, t + 0.4)
+    s.connect(f).connect(g).connect(E.sfxBus)
+    s.start(t, 0, 0.5)
+    E.tone(E.sfxBus, t + 0.5, { freq: 320, to: 260, dur: 0.15, peak: 0.08 })
+  },
+  channel(E, t) {
+    E.tone(E.sfxBus, t, { freq: 1500, dur: 0.03, type: 'square', peak: 0.05 })
+    E.burst(E.sfxBus, t + 0.03, { dur: 0.25, freq: 3000, Q: 0.3, peak: 0.08 })
+  },
+  cookStart(E, t) {
+    E.tone(E.sfxBus, t, { freq: 2000, dur: 0.04, type: 'square', peak: 0.04 })
+    E.tone(E.sfxBus, t + 0.08, { freq: 2000, dur: 0.04, type: 'square', peak: 0.04 })
+    E.burst(E.sfxBus, t + 0.2, { dur: 0.6, freq: 600, Q: 0.5, peak: 0.12, kind: 'pink', attack: 0.15 })
+  },
+}
+Object.assign(SFX, SFX_EXTRA)
 
 export const audio = new AudioEngine()
 

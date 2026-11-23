@@ -6,13 +6,13 @@ import { player, input, cam } from '../lib/shared'
 import { resolveCollisions } from '../lib/collision'
 import { useStore, getState, setState } from '../lib/store'
 import { SCENES } from '../scenes/config'
-import { setPose } from '../lib/actions'
+import { setPose, standUp } from '../lib/actions'
 
 const SPEED = 2.4
 
 // 개발용: 주소 뒤에 ?dev 를 붙이면 콘솔에서 __dbg.tp(x, z) 로 순간이동할 수 있습니다.
 if (typeof window !== 'undefined' && /[?&]dev/.test(window.location.search)) {
-  window.__dbg = { player, cam, tp: (x, z) => player.pos.set(x, 0, z) }
+  window.__dbg = { player, cam, tp: (x, z) => ((player.seat = null), player.pos.set(x, 0, z)) }
 }
 const RADIUS = 0.27
 
@@ -35,6 +35,7 @@ export default function Player() {
   useEffect(() => {
     const cfg = SCENES[scene]
     const sp = cfg.spawns[entry] || cfg.spawns.start
+    player.seat = null
     player.pos.set(sp.x, 0, sp.z)
     player.heading = sp.heading
     player.target = null
@@ -92,6 +93,19 @@ export default function Player() {
       }
     }
 
+    // 평상 등에 앉아 있는 동안: 자리 고정, 움직이면 일어나기
+    if (player.seat) {
+      if (Math.hypot(mx, mz) > 0.01 || player.target) {
+        const tgt = player.target
+        standUp()
+        player.target = tgt
+      } else {
+        player.pos.set(player.seat.x, player.seat.y, player.seat.z)
+        player.heading = player.seat.heading
+        mx = 0
+        mz = 0
+      }
+    }
     const moving = Math.hypot(mx, mz) > 0.01
     if (moving) {
       const before = player.pos.clone()
@@ -112,7 +126,7 @@ export default function Player() {
         }
       } else player.stuckTime = 0
       player.heading = angleLerp(player.heading, Math.atan2(mx, mz), Math.min(1, dtAll * 12))
-    } else {
+    } else if (!player.seat) {
       resolveCollisions(player.pos, RADIUS)
     }
     player.walking = moving
@@ -147,7 +161,7 @@ export default function Player() {
   return (
     <>
       <group ref={group}>
-        <Chibi look={LOOKS.me} pose={pose} animRef={anim} />
+        <Chibi look={LOOKS.me} pose={pose} animRef={anim} holding={pose === 'tea' ? 'tea' : undefined} />
       </group>
       <mesh ref={marker} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
         <ringGeometry args={[0.16, 0.22, 28]} />
